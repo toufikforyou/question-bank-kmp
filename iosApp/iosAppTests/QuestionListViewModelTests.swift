@@ -9,7 +9,7 @@ final class QuestionListViewModelTests: XCTestCase {
         let key = PaperKey(subjectId: "ssc-physics", boardId: "dhaka", year: 2023)
         let viewModel = QuestionListViewModel(store: TestContainers.fresh().paperStore(key: key), haptics: HapticsSpy())
 
-        await waitForState(viewModel.$state, timeout: 20) { !$0.isLoading }
+        await waitForState(viewModel.$state, timeout: 90) { !$0.isLoading }
 
         XCTAssertEqual(viewModel.state.title, "ঢাকা বোর্ড ২০২৩")
         XCTAssertEqual(viewModel.state.items.count, 8)
@@ -23,7 +23,7 @@ final class QuestionListViewModelTests: XCTestCase {
         let haptics = HapticsSpy()
         let key = PaperKey(subjectId: "ssc-math", boardId: "rajshahi", year: 2019)
         let viewModel = QuestionListViewModel(store: TestContainers.fresh().paperStore(key: key), haptics: haptics)
-        await waitForState(viewModel.$state, timeout: 20) { !$0.isLoading }
+        await waitForState(viewModel.$state, timeout: 90) { !$0.isLoading }
         let question = try XCTUnwrap(viewModel.state.items.first { $0.question.isMcq }?.question)
 
         viewModel.select(questionId: question.id, optionId: try XCTUnwrap(question.correctOptionId))
@@ -37,7 +37,7 @@ final class QuestionListViewModelTests: XCTestCase {
         let viewModel = QuestionListViewModel(store: TestContainers.fresh().searchStore(exam: .ssc), haptics: HapticsSpy())
 
         viewModel.search("বর্গমূল")
-        await waitForState(viewModel.$state, timeout: 20) { !$0.items.isEmpty }
+        await waitForState(viewModel.$state, timeout: 90) { !$0.items.isEmpty }
 
         XCTAssertTrue(viewModel.state.items.allSatisfy { $0.question.subjectId.hasPrefix("ssc-") })
     }

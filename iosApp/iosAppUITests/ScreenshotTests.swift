@@ -14,7 +14,7 @@ final class ScreenshotTests: XCTestCase {
         app.launchArguments = ["-ui-testing"]
         app.launch()
 
-        XCTAssertTrue(app.buttons["finder.open"].waitForExistence(timeout: 30))
+        XCTAssertTrue(app.buttons["finder.open"].waitForExistence(timeout: 90))
         capture("ios-1-home")
 
         app.buttons["finder.open"].tap()

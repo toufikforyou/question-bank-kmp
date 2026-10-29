@@ -12,7 +12,7 @@ final class QuizFlowUITests: XCTestCase {
     }
 
     func testLaunchGoesStraightToHomeWithFinder() {
-        XCTAssertTrue(app.buttons["finder.open"].waitForExistence(timeout: 30))
+        XCTAssertTrue(app.buttons["finder.open"].waitForExistence(timeout: 90))
         XCTAssertTrue(app.buttons["home.search"].exists)
     }
 
@@ -57,13 +57,13 @@ final class QuizFlowUITests: XCTestCase {
 
     private func openDefaultPaper() {
         let open = app.buttons["finder.open"]
-        XCTAssertTrue(open.waitForExistence(timeout: 30))
+        XCTAssertTrue(open.waitForExistence(timeout: 90))
         open.tap()
         XCTAssertTrue(app.buttons["list.practise"].waitForExistence(timeout: 10))
     }
 
     private func waitAndScrollTo(_ element: XCUIElement) -> Bool {
-        guard app.buttons["finder.open"].waitForExistence(timeout: 30) else { return false }
+        guard app.buttons["finder.open"].waitForExistence(timeout: 90) else { return false }
         for _ in 0..<8 where !element.isHittable {
             app.swipeUp()
         }

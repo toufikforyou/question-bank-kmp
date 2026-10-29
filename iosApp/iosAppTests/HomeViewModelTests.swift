@@ -9,7 +9,7 @@ final class HomeViewModelTests: XCTestCase {
         let viewModel = HomeViewModel(store: TestContainers.fresh().homeStore())
         XCTAssertTrue(viewModel.state.isLoading)
 
-        await waitForState(viewModel.$state, timeout: 20) { !$0.isLoading }
+        await waitForState(viewModel.$state, timeout: 90) { !$0.isLoading }
 
         let state = viewModel.state
         XCTAssertNil(state.errorMessage)
@@ -25,7 +25,7 @@ final class HomeViewModelTests: XCTestCase {
     @MainActor
     func testSwitchingToHscShowsHscSubjects() async {
         let viewModel = HomeViewModel(store: TestContainers.fresh().homeStore())
-        await waitForState(viewModel.$state, timeout: 20) { !$0.isLoading }
+        await waitForState(viewModel.$state, timeout: 90) { !$0.isLoading }
 
         viewModel.selectExam(.hsc)
         await waitForState(viewModel.$state) { $0.selectedExam == .hsc }

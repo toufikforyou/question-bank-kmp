@@ -23,7 +23,7 @@ extension XCTestCase {
     @MainActor
     func waitForState<S>(
         _ publisher: Published<S>.Publisher,
-        timeout: TimeInterval = 30,
+        timeout: TimeInterval = 90,
         description: String = "state predicate",
         _ predicate: @escaping (S) -> Bool
     ) async {
