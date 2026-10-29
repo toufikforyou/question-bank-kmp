@@ -2,10 +2,12 @@ package dev.toufikforyou.questionbank.android
 
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertTextEquals
+import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollToNode
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import dev.toufikforyou.questionbank.android.ui.questions.QuestionListContent
 import dev.toufikforyou.questionbank.android.ui.theme.QuestionBankTheme
@@ -75,6 +77,7 @@ class QuestionListContentTest {
         render(state)
 
         composeRule.onNodeWithTag("option_m1_0").performClick()
+        composeRule.onNodeWithTag("question_list").performScrollToNode(hasTestTag("reveal_c1"))
         composeRule.onNodeWithTag("reveal_c1").performClick()
 
         assertEquals(QuestionListIntent.SelectOption("m1", "ক"), intents[0])
@@ -83,7 +86,7 @@ class QuestionListContentTest {
 
     @Test
     fun revealedCreativeQuestionShowsModelAnswer() {
-        render(state.copy(revealed = setOf("c1")))
+        render(state.copy(items = state.items.filter { !it.question.isMcq }, revealed = setOf("c1")))
 
         composeRule.onNodeWithText("বেগ বৃদ্ধির হার।").assertIsDisplayed()
         composeRule.onNodeWithText("নমুনা উত্তর লুকান").assertIsDisplayed()
