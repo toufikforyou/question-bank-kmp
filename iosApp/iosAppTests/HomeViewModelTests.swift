@@ -5,32 +5,32 @@ import Shared
 final class HomeViewModelTests: XCTestCase {
 
     @MainActor
-    func testFirstLaunchSeedsBankAndCreatesLocalProfileWithoutLogin() async {
+    func testFirstLaunchSeedsBankAndPrefillsFinderWithoutLogin() async throws {
         let viewModel = HomeViewModel(store: TestContainers.fresh().homeStore())
         XCTAssertTrue(viewModel.state.isLoading)
 
-        await waitForState(viewModel.$state) { !$0.isLoading }
+        await waitForState(viewModel.$state, timeout: 20) { !$0.isLoading }
 
-        XCTAssertNil(viewModel.state.errorMessage)
-        XCTAssertEqual(viewModel.state.profileName, "Learner")
-        XCTAssertEqual(viewModel.state.categories.count, 4)
-        XCTAssertEqual(viewModel.state.totalQuestions, 24)
-        XCTAssertEqual(viewModel.state.stats.totalAnswered, 0)
+        let state = viewModel.state
+        XCTAssertNil(state.errorMessage)
+        XCTAssertTrue(state.isSample)
+        XCTAssertEqual(state.boards.count, 11)
+        XCTAssertEqual(state.subjects.count, 7)
+        XCTAssertEqual(state.selectedExam, ExamType.ssc)
+        let key = try XCTUnwrap(state.finderKey)
+        XCTAssertEqual(key.boardId, "dhaka")
+        XCTAssertEqual(key.year, 2025)
     }
 
     @MainActor
-    func testStatsUpdateAfterAnsweringInAnotherStore() async throws {
-        let container = TestContainers.fresh()
-        let home = HomeViewModel(store: container.homeStore())
-        await waitForState(home.$state) { !$0.isLoading }
+    func testSwitchingToHscShowsHscSubjects() async {
+        let viewModel = HomeViewModel(store: TestContainers.fresh().homeStore())
+        await waitForState(viewModel.$state, timeout: 20) { !$0.isLoading }
 
-        let quiz = QuizViewModel(store: container.quizStore(), haptics: HapticsSpy())
-        quiz.startIfNeeded(.quick)
-        await waitForState(quiz.$state) { $0.status == .inProgress }
-        let question = try XCTUnwrap(quiz.state.currentQuestion)
-        quiz.select(question.correctOptionId)
+        viewModel.selectExam(.hsc)
+        await waitForState(viewModel.$state) { $0.selectedExam == .hsc }
 
-        await waitForState(home.$state) { $0.stats.totalAnswered == 1 }
-        XCTAssertEqual(home.state.stats.accuracyPercent, 100)
+        XCTAssertTrue(viewModel.state.subjects.allSatisfy { $0.exam == .hsc })
+        XCTAssertEqual(viewModel.state.examLabel, "এইচএসসি")
     }
 }

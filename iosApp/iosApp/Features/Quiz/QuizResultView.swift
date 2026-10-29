@@ -2,7 +2,7 @@ import SwiftUI
 import Shared
 
 struct QuizResultView: View {
-    let score: QuizScore
+    let state: QuizState
     let onRestart: () -> Void
     let onDone: () -> Void
 
@@ -11,31 +11,34 @@ struct QuizResultView: View {
     var body: some View {
         VStack(spacing: 20) {
             Spacer()
+            if state.timeUp {
+                Text("সময় শেষ!").font(.headline).foregroundStyle(.red)
+            }
             ZStack {
                 Circle().stroke(Color(.systemGray5), lineWidth: 14)
                 Circle()
                     .trim(from: 0, to: animatedFraction)
                     .stroke(Color.accentColor, style: StrokeStyle(lineWidth: 14, lineCap: .round))
                     .rotationEffect(.degrees(-90))
-                Text("\(score.percent)%")
+                Text(state.percentLabel)
                     .font(.system(size: 44, weight: .bold, design: .rounded))
                     .accessibilityIdentifier("quiz.result.percent")
             }
             .frame(width: 170, height: 170)
 
-            Text(score.isPassing ? "Great work!" : "Keep practising")
+            Text(state.score.isPassing ? "চমৎকার!" : "আরও অনুশীলন করুন")
                 .font(.title2.weight(.semibold))
-            Text("You answered \(score.correct) of \(score.total) correctly.")
+            Text(state.scoreLabel)
                 .foregroundStyle(.secondary)
                 .accessibilityIdentifier("quiz.result.summary")
             Spacer()
             Button(action: onRestart) {
-                Text("Try again").frame(maxWidth: .infinity).padding(.vertical, 6)
+                Text("আবার দিন").frame(maxWidth: .infinity).padding(.vertical, 6)
             }
             .buttonStyle(.borderedProminent)
             .accessibilityIdentifier("quiz.restart")
             Button(action: onDone) {
-                Text("Back to home").frame(maxWidth: .infinity).padding(.vertical, 6)
+                Text("ফিরে যান").frame(maxWidth: .infinity).padding(.vertical, 6)
             }
             .buttonStyle(.bordered)
             .accessibilityIdentifier("quiz.done")
@@ -43,7 +46,7 @@ struct QuizResultView: View {
         .padding(24)
         .onAppear {
             withAnimation(.easeOut(duration: 0.9)) {
-                animatedFraction = Double(score.percent) / 100
+                animatedFraction = Double(state.score.percent) / 100
             }
         }
     }

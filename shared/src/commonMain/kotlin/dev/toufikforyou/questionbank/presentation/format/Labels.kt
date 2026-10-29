@@ -12,6 +12,9 @@ object Labels {
 
     fun number(value: Int): String = value.toBanglaDigits()
 
+    /** Bangla digits inside any text, e.g. a subject code "136" -> "১৩৬". */
+    fun digits(text: String): String = text.toBanglaDigits()
+
     fun exam(type: ExamType): String = when (type) {
         ExamType.SSC -> "এসএসসি"
         ExamType.HSC -> "এইচএসসি"

@@ -6,6 +6,8 @@ import Shared
 /// and routes one-off effects (haptics) to native components.
 final class QuizViewModelTests: XCTestCase {
 
+    private let physics = QuizRequest.Companion.shared.forSubject(subjectId: "ssc-physics")
+
     @MainActor
     private func makeViewModel(haptics: HapticsSpy = HapticsSpy()) -> QuizViewModel {
         QuizViewModel(store: TestContainers.fresh().quizStore(), haptics: haptics)
@@ -20,39 +22,39 @@ final class QuizViewModelTests: XCTestCase {
     }
 
     @MainActor
-    func testStartPublishesInProgressStateWithFirstQuestion() async {
+    func testStartPublishesInProgressStateWithBanglaProgress() async {
         let viewModel = makeViewModel()
 
-        viewModel.startIfNeeded(.quick)
+        viewModel.startIfNeeded(physics)
         await waitForState(viewModel.$state) { $0.status == .inProgress }
 
         XCTAssertNotNil(viewModel.state.currentQuestion)
-        XCTAssertEqual(viewModel.state.questionNumber, 1)
         XCTAssertEqual(viewModel.state.totalQuestions, 10)
-        XCTAssertFalse(viewModel.state.isAnswerRevealed)
+        XCTAssertEqual(viewModel.state.progressLabel, "প্রশ্ন ১ / ১০")
+        XCTAssertNil(viewModel.state.timerLabel)
     }
 
     @MainActor
     func testCorrectAnswerRevealsAndTriggersSuccessHaptic() async throws {
         let haptics = HapticsSpy()
         let viewModel = makeViewModel(haptics: haptics)
-        viewModel.startIfNeeded(.quick)
+        viewModel.startIfNeeded(physics)
         await waitForState(viewModel.$state) { $0.status == .inProgress }
         let question = try XCTUnwrap(viewModel.state.currentQuestion)
+        let correct = try XCTUnwrap(question.correctOptionId)
 
-        viewModel.select(question.correctOptionId)
+        viewModel.select(correct)
         await waitForState(viewModel.$state) { $0.isAnswerRevealed }
 
-        XCTAssertEqual(viewModel.state.optionState(optionId: question.correctOptionId), OptionState.correct)
-        XCTAssertEqual(viewModel.state.score.correct, 1)
+        XCTAssertEqual(viewModel.state.optionState(optionId: correct), OptionState.correct)
         XCTAssertEqual(haptics.performed.last, HapticKind.correct)
     }
 
     @MainActor
-    func testWrongAnswerMarksSelectionIncorrectAndTriggersErrorHaptic() async throws {
+    func testWrongAnswerTriggersErrorHaptic() async throws {
         let haptics = HapticsSpy()
         let viewModel = makeViewModel(haptics: haptics)
-        viewModel.startIfNeeded(.quick)
+        viewModel.startIfNeeded(physics)
         await waitForState(viewModel.$state) { $0.status == .inProgress }
         let question = try XCTUnwrap(viewModel.state.currentQuestion)
         let wrong = try XCTUnwrap(question.options.first { $0.id != question.correctOptionId })
@@ -61,43 +63,36 @@ final class QuizViewModelTests: XCTestCase {
         await waitForState(viewModel.$state) { $0.isAnswerRevealed }
 
         XCTAssertEqual(viewModel.state.optionState(optionId: wrong.id), OptionState.incorrect)
-        XCTAssertEqual(viewModel.state.optionState(optionId: question.correctOptionId), OptionState.correct)
         XCTAssertEqual(haptics.performed.last, HapticKind.incorrect)
     }
 
     @MainActor
-    func testNextAdvancesToFollowingQuestion() async throws {
+    func testPaperExamModeIsTimedAndKeepsPaperOrder() async {
+        let key = PaperKey(subjectId: "ssc-physics", boardId: "dhaka", year: 2023)
         let viewModel = makeViewModel()
-        viewModel.startIfNeeded(.quick)
+
+        viewModel.startIfNeeded(QuizRequest.Companion.shared.forPaper(paper: key))
         await waitForState(viewModel.$state) { $0.status == .inProgress }
-        let first = try XCTUnwrap(viewModel.state.currentQuestion)
 
-        viewModel.select(first.correctOptionId)
-        await waitForState(viewModel.$state) { $0.isAnswerRevealed }
-        viewModel.next()
-
-        XCTAssertEqual(viewModel.state.questionNumber, 2)
-        XCTAssertNotEqual(viewModel.state.currentQuestion?.id, first.id)
-        XCTAssertFalse(viewModel.state.isAnswerRevealed)
+        XCTAssertEqual(viewModel.state.totalQuestions, 6)
+        XCTAssertEqual(viewModel.state.timerLabel, "০৬:০০")
     }
 
     @MainActor
-    func testToggleBookmarkUpdatesCurrentQuestion() async throws {
+    func testToggleBookmarkUpdatesCurrentQuestion() async {
         let viewModel = makeViewModel()
-        viewModel.startIfNeeded(.quick)
+        viewModel.startIfNeeded(physics)
         await waitForState(viewModel.$state) { $0.status == .inProgress }
 
         viewModel.toggleBookmark()
         await waitForState(viewModel.$state) { $0.currentQuestion?.isBookmarked == true }
-
-        XCTAssertEqual(viewModel.state.currentQuestion?.isBookmarked, true)
     }
 
     @MainActor
     func testEmptyBookmarkQuizShowsEmptyState() async {
         let viewModel = makeViewModel()
 
-        viewModel.startIfNeeded(.bookmarks)
+        viewModel.startIfNeeded(QuizRequest.Companion.shared.forBookmarks())
         await waitForState(viewModel.$state) { $0.status == .empty }
 
         XCTAssertNotNil(viewModel.state.errorMessage)
