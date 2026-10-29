@@ -2,6 +2,7 @@ package dev.toufikforyou.questionbank.android
 
 import android.graphics.Bitmap
 import androidx.compose.ui.graphics.asAndroidBitmap
+import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.hasTestTag
@@ -85,7 +86,12 @@ class ScreenshotCaptureTest {
         composeRule.onNodeWithTag("chapter_ssc-physics-3").performClick()
         waitFor(hasTestTag("question_list"))
         composeRule.onNodeWithTag("filter_cq").performClick()
-        composeRule.onAllNodes(hasTestTagPrefix("reveal_")).onFirst().performClick()
+        composeRule.waitForIdle()
+        Thread.sleep(600)
+        composeRule.onNodeWithTag("question_list").performScrollToNode(hasTestTagPrefix("reveal_"))
+        val revealTag = composeRule.onAllNodes(hasTestTagPrefix("reveal_")).fetchSemanticsNodes()
+            .first().config[SemanticsProperties.TestTag]
+        composeRule.onNodeWithTag(revealTag).performClick()
         capture("android-6-creative")
     }
 }
