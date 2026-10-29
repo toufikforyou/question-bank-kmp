@@ -10,6 +10,8 @@ LOG_DIR="${RUNNER_TEMP:-/tmp}/android-emulator"
 mkdir -p "$LOG_DIR"
 
 SDK="${ANDROID_HOME:-$ANDROID_SDK_ROOT}"
+export ANDROID_AVD_HOME="${ANDROID_AVD_HOME:-$HOME/.android/avd}"
+mkdir -p "$ANDROID_AVD_HOME"
 export PATH="$SDK/cmdline-tools/latest/bin:$SDK/emulator:$SDK/platform-tools:$PATH"
 
 annotate() {
