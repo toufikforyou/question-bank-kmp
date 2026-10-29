@@ -24,16 +24,15 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
       - name: Capture on emulator
-        uses: reactivecircus/android-emulator-runner@v2
-        with:
-          api-level: 34
-          target: google_apis
-          arch: x86_64
-          profile: pixel_6
-          disable-animations: false
-          script: |
-            ./gradlew :androidApp:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=dev.toufikforyou.questionbank.android.ScreenshotCaptureTest -Pandroid.testInstrumentationRunnerArguments.screenshots=true
-            mkdir -p screenshots && adb pull /sdcard/Android/data/dev.toufikforyou.questionbank/files/screenshots/. screenshots/
+        env:
+          DISABLE_ANIMATIONS: "false"
+        run: |
+          .github/scripts/android-emulator.sh bash -c '
+            ./gradlew :androidApp:connectedDebugAndroidTest \
+              -Pandroid.testInstrumentationRunnerArguments.class=dev.toufikforyou.questionbank.android.ScreenshotCaptureTest \
+              -Pandroid.testInstrumentationRunnerArguments.screenshots=true &&
+            mkdir -p screenshots &&
+            adb pull /sdcard/Android/data/dev.toufikforyou.questionbank/files/screenshots/. screenshots/'
       - uses: actions/upload-artifact@v4
         with:
           name: screenshots-android
@@ -106,10 +105,15 @@ jobs:
           set -euo pipefail
           git config user.name "${{ github.repository_owner }}"
           git config user.email "${{ github.repository_owner }}@users.noreply.github.com"
-          git checkout --orphan screenshots
-          git rm -rfq .
-          mv shots/*.png .
+          if git fetch --depth 1 origin screenshots 2>/dev/null; then
+            git checkout -B screenshots FETCH_HEAD
+          else
+            git checkout --orphan screenshots
+            git rm -rfq .
+          fi
+          cp shots/*.png .
           rm -rf shots
           git add *.png
+          git diff --cached --quiet && { echo "No changes"; exit 0; }
           git commit -qm "Update screenshots"
-          git push -f origin screenshots
+          git push origin screenshots
