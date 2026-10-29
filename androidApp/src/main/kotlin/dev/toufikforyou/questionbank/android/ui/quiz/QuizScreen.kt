@@ -6,18 +6,15 @@ import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.animateIntAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -29,18 +26,17 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Bookmark
-import androidx.compose.material.icons.filled.Cancel
-import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material.icons.outlined.Inbox
+import androidx.compose.material.icons.outlined.Timer
+import androidx.compose.material3.AssistChip
+import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Button
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -49,11 +45,9 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -62,24 +56,19 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.heading
-import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import dev.toufikforyou.questionbank.android.ui.components.AnswerOptionCard
 import dev.toufikforyou.questionbank.android.ui.components.LoadingState
 import dev.toufikforyou.questionbank.android.ui.components.MessageState
 import dev.toufikforyou.questionbank.android.ui.components.rememberHaptics
 import dev.toufikforyou.questionbank.android.ui.theme.LocalFeedbackColors
-import dev.toufikforyou.questionbank.domain.model.AnswerOption
 import dev.toufikforyou.questionbank.domain.model.Question
 import dev.toufikforyou.questionbank.domain.model.QuizRequest
-import dev.toufikforyou.questionbank.domain.model.QuizScore
-import dev.toufikforyou.questionbank.presentation.quiz.OptionState
 import dev.toufikforyou.questionbank.presentation.quiz.QuizEffect
 import dev.toufikforyou.questionbank.presentation.quiz.QuizIntent
 import dev.toufikforyou.questionbank.presentation.quiz.QuizState
@@ -88,21 +77,13 @@ import dev.toufikforyou.questionbank.presentation.quiz.QuizStore
 import kotlinx.coroutines.launch
 
 @Composable
-fun QuizScreen(
-    store: QuizStore,
-    title: String,
-    categoryId: String?,
-    bookmarkedOnly: Boolean,
-    onBack: () -> Unit,
-) {
+fun QuizScreen(store: QuizStore, request: QuizRequest, onBack: () -> Unit) {
     val state by store.state.collectAsStateWithLifecycle()
     val haptics = rememberHaptics()
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(store) {
-        if (store.currentState.status == QuizStatus.IDLE) {
-            store.dispatch(QuizIntent.Start(categoryId, QuizRequest.DEFAULT_LIMIT, bookmarkedOnly))
-        }
+        if (store.currentState.status == QuizStatus.IDLE) store.dispatch(QuizIntent.Start(request))
         store.effects.collect { effect ->
             when (effect) {
                 is QuizEffect.Haptic -> haptics.perform(effect.kind)
@@ -113,7 +94,7 @@ fun QuizScreen(
 
     QuizContent(
         state = state,
-        title = title,
+        title = if (request.timed) "পরীক্ষা" else "অনুশীলন",
         onIntent = store::dispatch,
         onBack = onBack,
         snackbarHostState = snackbarHostState,
@@ -135,20 +116,29 @@ fun QuizContent(
             TopAppBar(
                 title = { Text(title) },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
+                    IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "ফিরে যান") }
                 },
                 actions = {
+                    state.timerLabel?.takeIf { state.status == QuizStatus.IN_PROGRESS }?.let { clock ->
+                        val warn = state.isTimeRunningOut
+                        val color by animateColorAsState(
+                            if (warn) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.secondaryContainer,
+                            label = "timer",
+                        )
+                        AssistChip(
+                            onClick = {},
+                            label = { Text(clock, fontWeight = FontWeight.SemiBold) },
+                            leadingIcon = { Icon(Icons.Outlined.Timer, contentDescription = "বাকি সময়") },
+                            colors = AssistChipDefaults.assistChipColors(containerColor = color),
+                            modifier = Modifier.testTag("quiz_timer"),
+                        )
+                    }
                     val question = state.currentQuestion
                     if (question != null) {
-                        IconButton(
-                            onClick = { onIntent(QuizIntent.ToggleBookmark) },
-                            modifier = Modifier.testTag("bookmark_button"),
-                        ) {
+                        IconButton(onClick = { onIntent(QuizIntent.ToggleBookmark) }, modifier = Modifier.testTag("bookmark_button")) {
                             Icon(
                                 if (question.isBookmarked) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder,
-                                contentDescription = if (question.isBookmarked) "Remove bookmark" else "Bookmark question",
+                                contentDescription = if (question.isBookmarked) "সংরক্ষণ বাতিল" else "সংরক্ষণ করুন",
                             )
                         }
                     }
@@ -162,24 +152,20 @@ fun QuizContent(
                 QuizStatus.IDLE, QuizStatus.LOADING -> LoadingState()
                 QuizStatus.EMPTY -> MessageState(
                     icon = Icons.Outlined.Inbox,
-                    title = "Nothing to practise yet",
-                    message = state.errorMessage ?: "There are no questions here.",
-                    actionLabel = "Go back",
+                    title = "অনুশীলনের প্রশ্ন নেই",
+                    message = state.errorMessage ?: "এখানে কোনো বহুনির্বাচনি প্রশ্ন নেই।",
+                    actionLabel = "ফিরে যান",
                     onAction = onBack,
                 )
                 QuizStatus.ERROR -> MessageState(
                     icon = Icons.Outlined.ErrorOutline,
-                    title = "Something went wrong",
-                    message = state.errorMessage ?: "Please try again.",
-                    actionLabel = "Retry",
+                    title = "কিছু একটা ভুল হয়েছে",
+                    message = state.errorMessage ?: "আবার চেষ্টা করুন।",
+                    actionLabel = "আবার চেষ্টা করুন",
                     onAction = { onIntent(QuizIntent.Restart) },
                 )
                 QuizStatus.IN_PROGRESS -> QuestionFlow(state, onIntent)
-                QuizStatus.FINISHED -> ResultContent(
-                    score = state.score,
-                    onRestart = { onIntent(QuizIntent.Restart) },
-                    onDone = onBack,
-                )
+                QuizStatus.FINISHED -> ResultContent(state, onRestart = { onIntent(QuizIntent.Restart) }, onDone = onBack)
             }
         }
     }
@@ -192,7 +178,7 @@ private fun QuestionFlow(state: QuizState, onIntent: (QuizIntent) -> Unit) {
     Column(Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 8.dp)) {
         LinearProgressIndicator(progress = { progress }, modifier = Modifier.fillMaxWidth().testTag("quiz_progress"))
         Text(
-            "Question ${state.questionNumber} of ${state.totalQuestions}",
+            state.progressLabel,
             style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(vertical = 12.dp).testTag("quiz_counter"),
@@ -209,21 +195,15 @@ private fun QuestionFlow(state: QuizState, onIntent: (QuizIntent) -> Unit) {
             modifier = Modifier.weight(1f),
             label = "question",
         ) { question ->
-            if (question != null) {
-                QuestionCard(question, state, onIntent)
-            }
+            if (question != null) QuestionCard(question, state, onIntent)
         }
 
-        AnimatedVisibility(
-            visible = state.isAnswerRevealed,
-            enter = slideInVertically { it } + fadeIn(),
-            exit = fadeOut(tween(120)),
-        ) {
+        AnimatedVisibility(visible = state.isAnswerRevealed, enter = slideInVertically { it } + fadeIn(), exit = fadeOut(tween(120))) {
             Button(
                 onClick = { onIntent(QuizIntent.Next) },
                 modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp).testTag("next_button"),
             ) {
-                Text(if (state.isLastQuestion) "See results" else "Next question")
+                Text(if (state.isLastQuestion) "ফলাফল দেখুন" else "পরের প্রশ্ন")
             }
         }
     }
@@ -232,25 +212,13 @@ private fun QuestionFlow(state: QuizState, onIntent: (QuizIntent) -> Unit) {
 @Composable
 private fun QuestionCard(question: Question, state: QuizState, onIntent: (QuizIntent) -> Unit) {
     ElevatedCard(Modifier.fillMaxWidth().testTag("quiz_question_card")) {
-        Column(
-            Modifier.verticalScroll(rememberScrollState()).padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            Text(
-                question.difficulty.name.lowercase().replaceFirstChar { it.uppercase() },
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.tertiary,
-            )
-            Text(
-                question.prompt,
-                style = MaterialTheme.typography.titleLarge,
-                modifier = Modifier.semantics { heading() },
-            )
+        Column(Modifier.verticalScroll(rememberScrollState()).padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text(question.prompt, style = MaterialTheme.typography.titleLarge, modifier = Modifier.semantics { heading() })
             Spacer(Modifier.height(4.dp))
             question.options.forEachIndexed { index, option ->
-                OptionCard(
-                    option = option,
-                    label = ('A' + index).toString(),
+                AnswerOptionCard(
+                    label = option.id,
+                    text = option.text,
                     optionState = state.optionState(option.id),
                     onClick = { onIntent(QuizIntent.SelectOption(option.id)) },
                     modifier = Modifier.testTag("option_$index"),
@@ -262,7 +230,7 @@ private fun QuestionCard(question: Question, state: QuizState, onIntent: (QuizIn
                     val colors = LocalFeedbackColors.current
                     Column(Modifier.padding(top = 4.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Text(
-                            if (answer.isCorrect) "Correct!" else "Not quite",
+                            if (answer.isCorrect) "সঠিক উত্তর!" else "ভুল হয়েছে",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.SemiBold,
                             color = if (answer.isCorrect) colors.correct else colors.incorrect,
@@ -279,92 +247,8 @@ private fun QuestionCard(question: Question, state: QuizState, onIntent: (QuizIn
 }
 
 @Composable
-private fun OptionCard(
-    option: AnswerOption,
-    label: String,
-    optionState: OptionState,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val feedback = LocalFeedbackColors.current
-    val scheme = MaterialTheme.colorScheme
-    val container by animateColorAsState(
-        when (optionState) {
-            OptionState.CORRECT -> feedback.correctContainer
-            OptionState.INCORRECT -> feedback.incorrectContainer
-            OptionState.SELECTED -> scheme.secondaryContainer
-            OptionState.IDLE, OptionState.DIMMED -> scheme.surface
-        },
-        label = "optionContainer",
-    )
-    val border by animateColorAsState(
-        when (optionState) {
-            OptionState.CORRECT -> feedback.correct
-            OptionState.INCORRECT -> feedback.incorrect
-            OptionState.SELECTED -> scheme.secondary
-            OptionState.IDLE -> scheme.outlineVariant
-            OptionState.DIMMED -> scheme.outlineVariant.copy(alpha = 0.4f)
-        },
-        label = "optionBorder",
-    )
-    val scale by animateFloatAsState(
-        if (optionState == OptionState.SELECTED) 0.98f else 1f,
-        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
-        label = "optionScale",
-    )
-    val contentAlpha = if (optionState == OptionState.DIMMED) 0.6f else 1f
-
-    OutlinedCard(
-        onClick = onClick,
-        enabled = optionState == OptionState.IDLE,
-        modifier = modifier
-            .fillMaxWidth()
-            .scale(scale)
-            .semantics {
-                selected = optionState == OptionState.SELECTED
-                stateDescription = when (optionState) {
-                    OptionState.CORRECT -> "Correct answer"
-                    OptionState.INCORRECT -> "Incorrect answer"
-                    OptionState.SELECTED -> "Selected"
-                    else -> ""
-                }
-            },
-        colors = CardDefaults.outlinedCardColors(
-            containerColor = container,
-            disabledContainerColor = container,
-            contentColor = scheme.onSurface,
-            disabledContentColor = scheme.onSurface.copy(alpha = contentAlpha),
-        ),
-        border = BorderStroke(1.5.dp, border),
-    ) {
-        Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-            Surface(shape = CircleShape, color = border.copy(alpha = 0.15f), modifier = Modifier.size(32.dp)) {
-                Box(contentAlignment = Alignment.Center) {
-                    Text(label, style = MaterialTheme.typography.labelLarge)
-                }
-            }
-            Text(
-                option.text,
-                style = MaterialTheme.typography.bodyLarge,
-                modifier = Modifier.weight(1f).padding(horizontal = 12.dp),
-            )
-            AnimatedVisibility(
-                visible = optionState == OptionState.CORRECT || optionState == OptionState.INCORRECT,
-                enter = scaleIn(spring(dampingRatio = Spring.DampingRatioMediumBouncy)) + fadeIn(),
-            ) {
-                Icon(
-                    if (optionState == OptionState.CORRECT) Icons.Filled.CheckCircle else Icons.Filled.Cancel,
-                    contentDescription = null,
-                    tint = border,
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun ResultContent(score: QuizScore, onRestart: () -> Unit, onDone: () -> Unit) {
-    val animatedPercent by animateIntAsState(score.percent, animationSpec = tween(900), label = "percent")
+private fun ResultContent(state: QuizState, onRestart: () -> Unit, onDone: () -> Unit) {
+    val score = state.score
     val animatedProgress by animateFloatAsState(score.percent / 100f, animationSpec = tween(900), label = "ring")
 
     Column(
@@ -372,6 +256,9 @@ private fun ResultContent(score: QuizScore, onRestart: () -> Unit, onDone: () ->
         verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
+        if (state.timeUp) {
+            Text("সময় শেষ!", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.error)
+        }
         Box(contentAlignment = Alignment.Center) {
             CircularProgressIndicator(
                 progress = { animatedProgress },
@@ -379,19 +266,18 @@ private fun ResultContent(score: QuizScore, onRestart: () -> Unit, onDone: () ->
                 strokeWidth = 12.dp,
                 trackColor = MaterialTheme.colorScheme.surfaceVariant,
             )
-            Text("$animatedPercent%", style = MaterialTheme.typography.displaySmall)
+            Text(state.percentLabel, style = MaterialTheme.typography.displaySmall)
         }
+        Text(if (score.isPassing) "চমৎকার!" else "আরও অনুশীলন করুন", style = MaterialTheme.typography.headlineSmall)
         Text(
-            if (score.isPassing) "Great work!" else "Keep practising",
-            style = MaterialTheme.typography.headlineSmall,
-        )
-        Text(
-            "You answered ${score.correct} of ${score.total} correctly.",
+            state.scoreLabel,
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.testTag("result_summary"),
         )
-        Button(onClick = onRestart, modifier = Modifier.fillMaxWidth().testTag("restart_button")) { Text("Try again") }
-        OutlinedButton(onClick = onDone, modifier = Modifier.fillMaxWidth().testTag("done_button")) { Text("Back to home") }
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            OutlinedButton(onClick = onDone, modifier = Modifier.weight(1f).testTag("done_button")) { Text("ফিরে যান") }
+            Button(onClick = onRestart, modifier = Modifier.weight(1f).testTag("restart_button")) { Text("আবার দিন") }
+        }
     }
 }

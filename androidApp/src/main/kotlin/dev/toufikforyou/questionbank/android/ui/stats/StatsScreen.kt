@@ -25,10 +25,12 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.toufikforyou.questionbank.android.ui.components.LoadingState
-import dev.toufikforyou.questionbank.domain.model.CategoryStats
+import dev.toufikforyou.questionbank.domain.model.SubjectStats
+import dev.toufikforyou.questionbank.presentation.format.Labels
 import dev.toufikforyou.questionbank.presentation.stats.StatsStore
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -39,9 +41,9 @@ fun StatsScreen(store: StatsStore, onBack: () -> Unit) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Statistics") },
+                title = { Text("পরিসংখ্যান") },
                 navigationIcon = {
-                    IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
+                    IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "ফিরে যান") }
                 },
             )
         },
@@ -52,42 +54,51 @@ fun StatsScreen(store: StatsStore, onBack: () -> Unit) {
         }
         val stats = state.stats
         LazyColumn(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier.fillMaxSize().testTag("stats_list"),
             contentPadding = PaddingValues(16.dp, padding.calculateTopPadding() + 8.dp, 16.dp, 24.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             item(key = "overview") {
                 ElevatedCard(Modifier.fillMaxWidth().animateItem()) {
                     Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("${stats.accuracyPercent}% accuracy", style = MaterialTheme.typography.headlineMedium)
-                        Text("${stats.totalCorrect} correct out of ${stats.totalAnswered} answered")
+                        Text("${Labels.percent(stats.accuracyPercent)} সঠিক", style = MaterialTheme.typography.headlineMedium)
+                        Text("${Labels.number(stats.totalAnswered)}টি উত্তরের মধ্যে ${Labels.number(stats.totalCorrect)}টি সঠিক")
                         Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) {
-                            Text("Current streak: ${stats.currentStreak}")
-                            Text("Best: ${stats.bestStreak}")
+                            Text("চলতি ধারা: ${Labels.number(stats.currentStreak)}")
+                            Text("সেরা ধারা: ${Labels.number(stats.bestStreak)}")
                         }
-                        Text("${stats.bookmarkedCount} bookmarked", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("${Labels.number(stats.bookmarkedCount)}টি প্রশ্ন সংরক্ষিত", color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
             }
-            items(stats.categoryStats, key = { it.categoryId }) { category ->
-                CategoryProgress(category, Modifier.animateItem())
+            if (stats.subjectStats.isEmpty()) {
+                item(key = "empty") {
+                    Text(
+                        "প্রশ্নের উত্তর দিলে এখানে বিষয়ভিত্তিক অগ্রগতি দেখা যাবে।",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.animateItem(),
+                    )
+                }
+            }
+            items(stats.subjectStats, key = { it.subjectId }) { subject ->
+                SubjectProgress(subject, Modifier.animateItem())
             }
         }
     }
 }
 
 @Composable
-private fun CategoryProgress(stats: CategoryStats, modifier: Modifier = Modifier) {
+private fun SubjectProgress(stats: SubjectStats, modifier: Modifier = Modifier) {
     val progress by animateFloatAsState(stats.accuracyPercent / 100f, animationSpec = tween(700), label = "accuracy")
     ElevatedCard(modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text(stats.title, style = MaterialTheme.typography.titleMedium)
-                Text("${stats.accuracyPercent}%", color = MaterialTheme.colorScheme.primary)
+                Text("${Labels.exam(stats.exam)} · ${stats.title}", style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
+                Text(Labels.percent(stats.accuracyPercent), color = MaterialTheme.colorScheme.primary)
             }
             LinearProgressIndicator(progress = { progress }, modifier = Modifier.fillMaxWidth())
             Text(
-                "${stats.correct} / ${stats.answered} correct",
+                "${Labels.number(stats.answered)}টির মধ্যে ${Labels.number(stats.correct)}টি সঠিক",
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

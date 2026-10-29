@@ -7,7 +7,7 @@ data class UserStats(
     val currentStreak: Int,
     val bestStreak: Int,
     val bookmarkedCount: Int,
-    val categoryStats: List<CategoryStats>,
+    val subjectStats: List<SubjectStats>,
 ) {
     companion object {
         val EMPTY = UserStats(
@@ -17,13 +17,14 @@ data class UserStats(
             currentStreak = 0,
             bestStreak = 0,
             bookmarkedCount = 0,
-            categoryStats = emptyList(),
+            subjectStats = emptyList(),
         )
     }
 }
 
-data class CategoryStats(
-    val categoryId: String,
+data class SubjectStats(
+    val subjectId: String,
+    val exam: ExamType,
     val title: String,
     val answered: Int,
     val correct: Int,

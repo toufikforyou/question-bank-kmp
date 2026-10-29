@@ -6,28 +6,75 @@ CREATE TABLE UserProfileEntity (
 
 CREATE TABLE SeedMetaEntity (
     id INTEGER NOT NULL PRIMARY KEY CHECK (id = 1),
-    version INTEGER NOT NULL
+    version INTEGER NOT NULL,
+    is_sample INTEGER NOT NULL
 );
 
-CREATE TABLE CategoryEntity (
+CREATE TABLE ExamEntity (
     id TEXT NOT NULL PRIMARY KEY,
-    title TEXT NOT NULL,
-    description TEXT NOT NULL,
+    name TEXT NOT NULL,
+    full_name TEXT NOT NULL,
     sort_order INTEGER NOT NULL
+);
+
+CREATE TABLE BoardEntity (
+    id TEXT NOT NULL PRIMARY KEY,
+    name TEXT NOT NULL,
+    name_en TEXT NOT NULL,
+    sort_order INTEGER NOT NULL
+);
+
+CREATE TABLE YearNoteEntity (
+    exam TEXT NOT NULL,
+    year INTEGER NOT NULL,
+    text TEXT NOT NULL,
+    PRIMARY KEY (exam, year)
+);
+
+CREATE TABLE SubjectEntity (
+    id TEXT NOT NULL PRIMARY KEY,
+    exam TEXT NOT NULL,
+    name TEXT NOT NULL,
+    name_en TEXT NOT NULL,
+    code TEXT NOT NULL,
+    study_group TEXT NOT NULL,
+    sort_order INTEGER NOT NULL
+);
+
+CREATE TABLE ChapterEntity (
+    id TEXT NOT NULL PRIMARY KEY,
+    subject_id TEXT NOT NULL,
+    number INTEGER NOT NULL,
+    name TEXT NOT NULL
 );
 
 CREATE TABLE QuestionEntity (
     id TEXT NOT NULL PRIMARY KEY,
-    category_id TEXT NOT NULL,
+    subject_id TEXT NOT NULL,
+    chapter_id TEXT NOT NULL,
+    type TEXT NOT NULL,
     prompt TEXT NOT NULL,
     options_json TEXT NOT NULL,
-    correct_option_id TEXT NOT NULL,
+    correct_option_id TEXT,
     explanation TEXT,
-    difficulty TEXT NOT NULL,
-    sort_order INTEGER NOT NULL
+    parts_json TEXT NOT NULL,
+    search_text TEXT NOT NULL,
+    appearance_count INTEGER NOT NULL
 );
 
-CREATE INDEX question_category_idx ON QuestionEntity(category_id);
+CREATE INDEX question_subject_idx ON QuestionEntity(subject_id);
+CREATE INDEX question_chapter_idx ON QuestionEntity(chapter_id);
+
+CREATE TABLE AppearanceEntity (
+    question_id TEXT NOT NULL,
+    subject_id TEXT NOT NULL,
+    board_id TEXT NOT NULL,
+    year INTEGER NOT NULL,
+    number INTEGER NOT NULL
+);
+
+CREATE INDEX appearance_paper_idx ON AppearanceEntity(subject_id, board_id, year);
+CREATE INDEX appearance_question_idx ON AppearanceEntity(question_id);
 
 CREATE TABLE BookmarkEntity (
     question_id TEXT NOT NULL PRIMARY KEY,
@@ -37,7 +84,7 @@ CREATE TABLE BookmarkEntity (
 CREATE TABLE AttemptEntity (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     question_id TEXT NOT NULL,
-    category_id TEXT NOT NULL,
+    subject_id TEXT NOT NULL,
     selected_option_id TEXT NOT NULL,
     is_correct INTEGER NOT NULL,
     answered_at INTEGER NOT NULL
@@ -53,34 +100,110 @@ insertProfile:
 INSERT INTO UserProfileEntity(id, display_name, created_at) VALUES (?, ?, ?);
 
 -- Seed bookkeeping
-selectSeedVersion:
-SELECT version FROM SeedMetaEntity WHERE id = 1;
+selectSeedMeta:
+SELECT * FROM SeedMetaEntity WHERE id = 1;
 
-upsertSeedVersion:
-INSERT OR REPLACE INTO SeedMetaEntity(id, version) VALUES (1, ?);
+upsertSeedMeta:
+INSERT OR REPLACE INTO SeedMetaEntity(id, version, is_sample) VALUES (1, ?, ?);
 
--- Catalog
-upsertCategory:
-INSERT OR REPLACE INTO CategoryEntity(id, title, description, sort_order) VALUES (?, ?, ?, ?);
+clearExams:
+DELETE FROM ExamEntity;
 
-upsertQuestion:
-INSERT OR REPLACE INTO QuestionEntity(id, category_id, prompt, options_json, correct_option_id, explanation, difficulty, sort_order)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+clearBoards:
+DELETE FROM BoardEntity;
 
-deleteAllCategories:
-DELETE FROM CategoryEntity;
+clearNotes:
+DELETE FROM YearNoteEntity;
 
-deleteAllQuestions:
+clearSubjects:
+DELETE FROM SubjectEntity;
+
+clearChapters:
+DELETE FROM ChapterEntity;
+
+clearQuestions:
 DELETE FROM QuestionEntity;
+
+clearAppearances:
+DELETE FROM AppearanceEntity;
 
 deleteOrphanBookmarks:
 DELETE FROM BookmarkEntity WHERE question_id NOT IN (SELECT id FROM QuestionEntity);
 
-selectCategories:
-SELECT * FROM CategoryEntity ORDER BY sort_order;
+insertExam:
+INSERT INTO ExamEntity(id, name, full_name, sort_order) VALUES (?, ?, ?, ?);
 
-selectQuestions:
-SELECT * FROM QuestionEntity ORDER BY sort_order;
+insertBoard:
+INSERT INTO BoardEntity(id, name, name_en, sort_order) VALUES (?, ?, ?, ?);
+
+insertNote:
+INSERT OR REPLACE INTO YearNoteEntity(exam, year, text) VALUES (?, ?, ?);
+
+insertSubject:
+INSERT INTO SubjectEntity(id, exam, name, name_en, code, study_group, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?);
+
+insertChapter:
+INSERT INTO ChapterEntity(id, subject_id, number, name) VALUES (?, ?, ?, ?);
+
+insertQuestion:
+INSERT INTO QuestionEntity(id, subject_id, chapter_id, type, prompt, options_json, correct_option_id, explanation, parts_json, search_text, appearance_count)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+insertAppearance:
+INSERT INTO AppearanceEntity(question_id, subject_id, board_id, year, number) VALUES (?, ?, ?, ?, ?);
+
+-- Catalog
+selectExams:
+SELECT * FROM ExamEntity ORDER BY sort_order;
+
+selectBoards:
+SELECT * FROM BoardEntity ORDER BY sort_order;
+
+selectNotes:
+SELECT * FROM YearNoteEntity ORDER BY year DESC;
+
+selectSubjects:
+SELECT * FROM SubjectEntity ORDER BY sort_order;
+
+selectChapters:
+SELECT * FROM ChapterEntity ORDER BY subject_id, number;
+
+selectChapterCounts:
+SELECT chapter_id, type, COUNT(*) AS total FROM QuestionEntity GROUP BY chapter_id, type;
+
+selectExamYears:
+SELECT DISTINCT s.exam, a.year FROM AppearanceEntity a JOIN SubjectEntity s ON s.id = a.subject_id ORDER BY a.year DESC;
+
+-- Papers
+selectPaperSummaries:
+SELECT a.board_id, a.year, q.type, COUNT(*) AS total
+FROM AppearanceEntity a JOIN QuestionEntity q ON q.id = a.question_id
+WHERE a.subject_id = ?
+GROUP BY a.board_id, a.year, q.type;
+
+selectPaperQuestionIds:
+SELECT question_id, number FROM AppearanceEntity
+WHERE subject_id = ? AND board_id = ? AND year = ?
+ORDER BY number;
+
+-- Questions
+selectQuestionsByIds:
+SELECT * FROM QuestionEntity WHERE id IN ?;
+
+selectAppearancesByQuestionIds:
+SELECT * FROM AppearanceEntity WHERE question_id IN ? ORDER BY year DESC, board_id;
+
+selectChapterQuestions:
+SELECT * FROM QuestionEntity WHERE chapter_id = ? ORDER BY appearance_count DESC, id;
+
+selectSubjectQuestions:
+SELECT * FROM QuestionEntity WHERE subject_id = ? ORDER BY appearance_count DESC, id;
+
+searchQuestions:
+SELECT q.* FROM QuestionEntity q JOIN SubjectEntity s ON s.id = q.subject_id
+WHERE s.exam = :exam AND q.search_text LIKE ('%' || :query || '%')
+ORDER BY q.appearance_count DESC, q.id
+LIMIT :limit;
 
 -- Bookmarks
 selectBookmarkIds:
@@ -94,7 +217,7 @@ DELETE FROM BookmarkEntity WHERE question_id = ?;
 
 -- Attempts
 insertAttempt:
-INSERT INTO AttemptEntity(question_id, category_id, selected_option_id, is_correct, answered_at)
+INSERT INTO AttemptEntity(question_id, subject_id, selected_option_id, is_correct, answered_at)
 VALUES (?, ?, ?, ?, ?);
 
 selectAttempts:

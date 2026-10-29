@@ -2,8 +2,10 @@ package dev.toufikforyou.questionbank.presentation.quiz
 
 import dev.toufikforyou.questionbank.domain.model.AnswerResult
 import dev.toufikforyou.questionbank.domain.model.Question
+import dev.toufikforyou.questionbank.domain.model.QuizRequest
 import dev.toufikforyou.questionbank.domain.model.QuizScore
 import dev.toufikforyou.questionbank.domain.model.QuizSession
+import dev.toufikforyou.questionbank.presentation.format.Labels
 
 enum class QuizStatus { IDLE, LOADING, IN_PROGRESS, FINISHED, EMPTY, ERROR }
 
@@ -18,6 +20,9 @@ data class QuizState(
     val session: QuizSession? = null,
     val selectedOptionId: String? = null,
     val lastAnswer: AnswerResult? = null,
+    /** Seconds left in exam mode; null when the session is untimed. */
+    val remainingSeconds: Int? = null,
+    val timeUp: Boolean = false,
     val errorMessage: String? = null,
 ) {
     val currentQuestion: Question?
@@ -29,9 +34,16 @@ data class QuizState(
     val questionNumber: Int get() = (session?.currentIndex ?: 0) + 1
     val totalQuestions: Int get() = session?.questions?.size ?: 0
     val score: QuizScore get() = session?.score ?: QuizScore(0, 0)
+    val isTimed: Boolean get() = remainingSeconds != null
 
     val progress: Float
         get() = if (totalQuestions == 0) 0f else (session?.answeredCount ?: 0).toFloat() / totalQuestions
+
+    val progressLabel: String get() = Labels.progress(questionNumber, totalQuestions)
+    val timerLabel: String? get() = remainingSeconds?.let(Labels::clock)
+    val isTimeRunningOut: Boolean get() = (remainingSeconds ?: Int.MAX_VALUE) <= 60
+    val scoreLabel: String get() = "${Labels.number(totalQuestions)}টির মধ্যে ${Labels.number(score.correct)}টি সঠিক"
+    val percentLabel: String get() = Labels.percent(score.percent)
 
     fun optionState(optionId: String): OptionState {
         val answer = lastAnswer ?: return if (optionId == selectedOptionId) OptionState.SELECTED else OptionState.IDLE
@@ -44,12 +56,7 @@ data class QuizState(
 }
 
 sealed class QuizIntent {
-    data class Start(
-        val categoryId: String?,
-        val limit: Int,
-        val bookmarkedOnly: Boolean,
-    ) : QuizIntent()
-
+    data class Start(val request: QuizRequest) : QuizIntent()
     data class SelectOption(val optionId: String) : QuizIntent()
     data object Next : QuizIntent()
     data object ToggleBookmark : QuizIntent()

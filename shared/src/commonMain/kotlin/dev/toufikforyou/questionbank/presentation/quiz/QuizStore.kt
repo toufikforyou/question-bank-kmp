@@ -9,6 +9,7 @@ import dev.toufikforyou.questionbank.domain.usecase.ToggleBookmarkUseCase
 import dev.toufikforyou.questionbank.presentation.mvi.BaseStore
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 class QuizStore(
@@ -20,10 +21,11 @@ class QuizStore(
 
     private var lastRequest: QuizRequest? = null
     private var startJob: Job? = null
+    private var timerJob: Job? = null
 
     override fun dispatch(intent: QuizIntent) {
         when (intent) {
-            is QuizIntent.Start -> start(QuizRequest(intent.categoryId, intent.limit, intent.bookmarkedOnly))
+            is QuizIntent.Start -> start(intent.request)
             is QuizIntent.SelectOption -> select(intent.optionId)
             QuizIntent.Next -> next()
             QuizIntent.ToggleBookmark -> onToggleBookmark()
@@ -34,11 +36,14 @@ class QuizStore(
     private fun start(request: QuizRequest) {
         lastRequest = request
         startJob?.cancel()
+        timerJob?.cancel()
         setState { QuizState(status = QuizStatus.LOADING) }
         startJob = scope.launch {
             getQuestions(request).fold(
                 onSuccess = { questions ->
-                    setState { QuizState(status = QuizStatus.IN_PROGRESS, session = QuizSession(questions)) }
+                    val limit = if (request.timed) questions.size * QuizRequest.SECONDS_PER_MCQ else null
+                    setState { QuizState(status = QuizStatus.IN_PROGRESS, session = QuizSession(questions), remainingSeconds = limit) }
+                    if (limit != null) startTimer()
                 },
                 onFailure = { error ->
                     val status = if (error is DomainError.EmptyQuestionBank) QuizStatus.EMPTY else QuizStatus.ERROR
@@ -65,7 +70,7 @@ class QuizStore(
                 },
                 onFailure = { error ->
                     setState { copy(selectedOptionId = null) }
-                    emit(QuizEffect.ShowMessage(error.message ?: "Your answer could not be saved."))
+                    emit(QuizEffect.ShowMessage(error.message ?: "উত্তর সংরক্ষণ করা যায়নি।"))
                 },
             )
         }
@@ -78,11 +83,33 @@ class QuizStore(
 
         val advanced = session.advance()
         if (advanced.isFinished) {
-            setState { copy(status = QuizStatus.FINISHED, session = advanced, selectedOptionId = null, lastAnswer = null) }
-            emit(QuizEffect.Haptic(HapticKind.COMPLETED))
+            finish(advanced, timeUp = false)
         } else {
             setState { copy(session = advanced, selectedOptionId = null, lastAnswer = null) }
         }
+    }
+
+    /** Exam mode: counts down once per second; unanswered questions score zero when time runs out. */
+    private fun startTimer() {
+        timerJob = scope.launch {
+            while (true) {
+                delay(1_000)
+                val remaining = (currentState.remainingSeconds ?: return@launch) - 1
+                if (currentState.status != QuizStatus.IN_PROGRESS) return@launch
+                if (remaining <= 0) {
+                    setState { copy(remainingSeconds = 0) }
+                    currentState.session?.let { finish(it, timeUp = true) }
+                    return@launch
+                }
+                setState { copy(remainingSeconds = remaining) }
+            }
+        }
+    }
+
+    private fun finish(session: QuizSession, timeUp: Boolean) {
+        if (!timeUp) timerJob?.cancel()
+        setState { copy(status = QuizStatus.FINISHED, session = session, selectedOptionId = null, lastAnswer = null, timeUp = timeUp) }
+        emit(QuizEffect.Haptic(HapticKind.COMPLETED))
     }
 
     private fun onToggleBookmark() {
@@ -93,7 +120,7 @@ class QuizStore(
                     setState { copy(session = session?.updateQuestion(question.id) { it.copy(isBookmarked = bookmarked) }) }
                     emit(QuizEffect.Haptic(HapticKind.SELECTION))
                 },
-                onFailure = { error -> emit(QuizEffect.ShowMessage(error.message ?: "Bookmark could not be updated.")) },
+                onFailure = { error -> emit(QuizEffect.ShowMessage(error.message ?: "বুকমার্ক পরিবর্তন করা যায়নি।")) },
             )
         }
     }

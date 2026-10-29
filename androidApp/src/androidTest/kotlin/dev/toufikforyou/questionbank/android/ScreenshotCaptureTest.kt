@@ -5,12 +5,13 @@ import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.hasTestTag
-import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollToNode
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.Assume.assumeTrue
@@ -36,54 +37,55 @@ class ScreenshotCaptureTest {
     }
 
     private fun waitFor(matcher: SemanticsMatcher) {
-        composeRule.waitUntil(timeoutMillis = 10_000) {
+        composeRule.waitUntil(timeoutMillis = SEED_TIMEOUT_MS) {
             composeRule.onAllNodes(matcher).fetchSemanticsNodes().isNotEmpty()
         }
     }
 
     private fun capture(name: String) {
         composeRule.waitForIdle()
-        Thread.sleep(800) // let enter animations settle
+        Thread.sleep(900) // let enter animations settle
         val bitmap = composeRule.onRoot().captureToImage().asAndroidBitmap()
         val dir = File(composeRule.activity.getExternalFilesDir(null), "screenshots").apply { mkdirs() }
         File(dir, "$name.png").outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
     }
 
+    private fun back() {
+        composeRule.onNodeWithContentDescription("ফিরে যান").performClick()
+        composeRule.waitForIdle()
+    }
+
     @Test
     fun captureMainScreens() {
-        waitFor(hasTestTag("category_list"))
+        waitFor(hasTestTag("paper_finder"))
         capture("android-1-home")
 
-        composeRule.onNodeWithTag("category_kotlin").performClick()
-        waitFor(hasTestTag("quiz_question_card"))
-        capture("android-2-question")
+        composeRule.onNodeWithTag("finder_open").performClick()
+        waitFor(hasTestTag("question_list"))
+        capture("android-2-board-paper")
 
-        composeRule.onNodeWithTag("bookmark_button").performClick()
-        composeRule.onNodeWithTag("option_1").performClick()
-        waitFor(hasTestTag("next_button"))
+        composeRule.onAllNodes(hasTestTagPrefix("option_")).onFirst().performClick()
+        waitFor(hasTestTagPrefix("feedback_"))
         capture("android-3-answer")
 
-        repeat(6) {
-            if (composeRule.onAllNodes(hasTestTag("next_button")).fetchSemanticsNodes().isEmpty()) {
-                composeRule.onNodeWithTag("option_1").performClick()
-                waitFor(hasTestTag("next_button"))
-            }
-            composeRule.onNodeWithTag("next_button").performClick()
-            composeRule.waitForIdle()
-        }
-        waitFor(hasTestTag("quiz_result"))
-        capture("android-4-results")
+        composeRule.onNodeWithTag("practise_button").performClick()
+        waitFor(hasTestTag("quiz_timer"))
+        capture("android-4-exam-mode")
+        back()
+        waitFor(hasTestTag("question_list"))
+        back()
 
-        composeRule.onNodeWithTag("done_button").performClick()
-        waitFor(hasTestTag("stats_button"))
-        composeRule.onNodeWithTag("stats_button").performClick()
-        waitFor(hasText("By category").or(hasText("Statistics")))
-        capture("android-5-statistics")
+        waitFor(hasTestTag("home_list"))
+        composeRule.onNodeWithTag("home_list").performScrollToNode(hasTestTag("subject_ssc-physics"))
+        composeRule.onNodeWithTag("subject_ssc-physics").performClick()
+        waitFor(hasTestTag("paper_list"))
+        capture("android-5-subject-papers")
 
-        composeRule.onNodeWithContentDescription("Back").performClick()
-        waitFor(hasTestTag("bookmarks_button"))
-        composeRule.onNodeWithTag("bookmarks_button").performClick()
-        waitFor(hasTestTag("bookmark_list"))
-        capture("android-6-bookmarks")
+        composeRule.onNodeWithTag("tab_chapters").performClick()
+        composeRule.onNodeWithTag("chapter_ssc-physics-3").performClick()
+        waitFor(hasTestTag("question_list"))
+        composeRule.onNodeWithTag("filter_cq").performClick()
+        composeRule.onAllNodes(hasTestTagPrefix("reveal_")).onFirst().performClick()
+        capture("android-6-creative")
     }
 }

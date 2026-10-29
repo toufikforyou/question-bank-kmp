@@ -1,15 +1,22 @@
 package dev.toufikforyou.questionbank.domain.model
 
 sealed class DomainError(message: String) : Exception(message) {
-    class EmptyQuestionBank(val categoryId: String?) :
-        DomainError(if (categoryId == null) "The question bank is empty." else "No questions available in this category yet.")
+    class EmptyQuestionBank : DomainError("এখানে অনুশীলনের জন্য কোনো প্রশ্ন নেই।")
 
     class InvalidQuizSize(val requested: Int) :
-        DomainError("A quiz must contain between 1 and ${QuizRequest.MAX_LIMIT} questions (requested $requested).")
+        DomainError("একটি কুইজে ১ থেকে ${QuizRequest.MAX_LIMIT.toBanglaDigits()}টি প্রশ্ন থাকতে পারে।")
 
-    class QuestionNotFound(val questionId: String) :
-        DomainError("Question '$questionId' could not be found.")
+    class PaperNotFound(val key: PaperKey, val note: String?) :
+        DomainError(note ?: "এই বোর্ড ও সালের প্রশ্ন এখনো যুক্ত হয়নি।")
+
+    class SubjectNotFound(val subjectId: String) : DomainError("বিষয়টি খুঁজে পাওয়া যায়নি।")
+
+    class ChapterNotFound(val chapterId: String) : DomainError("অধ্যায়টি খুঁজে পাওয়া যায়নি।")
+
+    class QueryTooShort(val minLength: Int) : DomainError("অন্তত ${minLength.toBanglaDigits()} অক্ষর লিখুন।")
+
+    class QuestionNotFound(val questionId: String) : DomainError("প্রশ্নটি খুঁজে পাওয়া যায়নি।")
 
     class InvalidOption(val questionId: String, val optionId: String) :
-        DomainError("Option '$optionId' does not belong to question '$questionId'.")
+        DomainError("উত্তরটি এই প্রশ্নের নয়।")
 }

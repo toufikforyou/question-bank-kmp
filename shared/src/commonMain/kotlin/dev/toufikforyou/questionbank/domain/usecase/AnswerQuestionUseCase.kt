@@ -14,13 +14,16 @@ class AnswerQuestionUseCase(
 ) {
     suspend operator fun invoke(questionId: String, optionId: String): Result<AnswerResult> = resultOf {
         val question = questionRepository.getQuestion(questionId) ?: throw DomainError.QuestionNotFound(questionId)
-        if (!question.hasOption(optionId)) throw DomainError.InvalidOption(questionId, optionId)
+        val correctOptionId = question.correctOptionId
+        if (!question.isMcq || correctOptionId == null || !question.hasOption(optionId)) {
+            throw DomainError.InvalidOption(questionId, optionId)
+        }
 
-        val isCorrect = optionId == question.correctOptionId
+        val isCorrect = optionId == correctOptionId
         attemptRepository.record(
             AnswerRecord(
                 questionId = question.id,
-                categoryId = question.categoryId,
+                subjectId = question.subjectId,
                 selectedOptionId = optionId,
                 isCorrect = isCorrect,
                 answeredAtMillis = timeProvider.nowMillis(),
@@ -29,7 +32,7 @@ class AnswerQuestionUseCase(
         AnswerResult(
             questionId = question.id,
             selectedOptionId = optionId,
-            correctOptionId = question.correctOptionId,
+            correctOptionId = correctOptionId,
             isCorrect = isCorrect,
             explanation = question.explanation,
         )
