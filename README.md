@@ -51,8 +51,19 @@ and see which questions come back year after year.
 | **Exams** | SSC (এসএসসি) and HSC (এইচএসসি) |
 | **Boards** | Dhaka, Rajshahi, Chattogram, Cumilla, Jashore, Barishal, Sylhet, Dinajpur, Mymensingh, Madrasah and Technical (all 11) |
 | **Years** | 2015 to 2025 |
-| **Groups** | Science, Business Studies, Humanities and compulsory subjects |
+| **Subjects** | 66 in total: 23 for SSC and 43 for HSC, including 1st and 2nd papers |
+| **Groups** | Compulsory, Science, Business Studies, Humanities, and optional/fourth subjects |
 | **Question types** | Multiple choice (বহুনির্বাচনি) and creative (সৃজনশীল) with উদ্দীপক and ক/খ/গ/ঘ parts |
+
+**SSC subjects:** Bangla 1st & 2nd, English 1st & 2nd, Mathematics, Bangladesh and Global Studies, ICT,
+Islam / Hinduism and Moral Education, Physics, Chemistry, Biology, Higher Mathematics, Accounting,
+Finance and Banking, Business Entrepreneurship, Geography and Environment, Economics, Civics and Citizenship,
+History of Bangladesh and World Civilization, Science, Agriculture Studies and Home Science.
+
+**HSC subjects (1st & 2nd papers):** Bangla, English, ICT, Physics, Chemistry, Biology, Higher Mathematics,
+Accounting, Business Organization and Management, Finance, Banking and Insurance, Production Management and
+Marketing, Economics, Civics and Good Governance, History, Islamic History and Culture, Logic, Sociology,
+Geography, Social Work, Psychology, Statistics and Agriculture Studies.
 
 The app notes years with no exam or a partial one, such as HSC 2020 and the short-syllabus exams of 2021.
 

@@ -2,7 +2,7 @@ package dev.toufikforyou.questionbank.domain.model
 
 enum class ExamType { SSC, HSC }
 
-enum class StudyGroup { COMMON, SCIENCE, HUMANITIES, BUSINESS }
+enum class StudyGroup { COMMON, SCIENCE, BUSINESS, HUMANITIES, OPTIONAL }
 
 data class Exam(
     val type: ExamType,

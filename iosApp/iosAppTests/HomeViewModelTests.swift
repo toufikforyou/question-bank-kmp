@@ -15,7 +15,7 @@ final class HomeViewModelTests: XCTestCase {
         XCTAssertNil(state.errorMessage)
         XCTAssertTrue(state.isSample)
         XCTAssertEqual(state.boards.count, 11)
-        XCTAssertEqual(state.subjects.count, 7)
+        XCTAssertEqual(state.subjects.count, 23)
         XCTAssertEqual(state.selectedExam, ExamType.ssc)
         let key = try XCTUnwrap(state.finderKey)
         XCTAssertEqual(key.boardId, "dhaka")

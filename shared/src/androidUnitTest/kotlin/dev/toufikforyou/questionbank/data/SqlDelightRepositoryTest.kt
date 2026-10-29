@@ -8,6 +8,7 @@ import dev.toufikforyou.questionbank.data.repository.SqlDelightQuestionRepositor
 import dev.toufikforyou.questionbank.domain.model.AnswerRecord
 import dev.toufikforyou.questionbank.domain.model.ExamType
 import dev.toufikforyou.questionbank.domain.model.PaperKey
+import dev.toufikforyou.questionbank.domain.model.StudyGroup
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
@@ -36,15 +37,18 @@ class SqlDelightRepositoryTest {
 
     @Test
     fun bundledBankCoversBothExamsAllBoardsAndAllYears() = runTest {
+        val started = System.nanoTime()
         val catalog = repo.getCatalog()
+        println("First-launch import took ${(System.nanoTime() - started) / 1_000_000} ms")
 
         assertTrue(catalog.isSample)
         assertEquals(11, catalog.boards.size)
-        assertEquals(7, catalog.subjectsFor(ExamType.SSC).size)
-        assertEquals(7, catalog.subjectsFor(ExamType.HSC).size)
+        assertEquals(23, catalog.subjectsFor(ExamType.SSC).size)
+        assertEquals(43, catalog.subjectsFor(ExamType.HSC).size)
         assertEquals((2015..2025).toList().reversed(), catalog.yearsFor(ExamType.SSC))
         assertTrue(2020 !in catalog.yearsFor(ExamType.HSC), "HSC 2020 was not held")
         assertTrue(catalog.subjects.all { s -> s.chapters.isNotEmpty() && s.questionCount > 0 })
+        assertEquals(StudyGroup.entries.toSet(), catalog.subjects.map { it.group }.toSet(), "every group has subjects")
         assertEquals(1, readCount, "seed must be parsed only once per process")
     }
 

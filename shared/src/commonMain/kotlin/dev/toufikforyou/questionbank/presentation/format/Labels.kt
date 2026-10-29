@@ -25,6 +25,7 @@ object Labels {
         StudyGroup.SCIENCE -> "বিজ্ঞান"
         StudyGroup.HUMANITIES -> "মানবিক"
         StudyGroup.BUSINESS -> "ব্যবসায় শিক্ষা"
+        StudyGroup.OPTIONAL -> "ঐচ্ছিক ও অন্যান্য বিষয়"
     }
 
     fun boardYear(boardName: String, year: Int): String = "$boardName বোর্ড ${year.toBanglaDigits()}"
