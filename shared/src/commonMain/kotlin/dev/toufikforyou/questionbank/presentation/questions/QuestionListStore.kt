@@ -74,6 +74,12 @@ data class QuestionListState(
     val cqCount: Int get() = items.size - mcqCount
     val isEmpty: Boolean get() = !isLoading && errorMessage == null && items.isEmpty()
 
+    /** The list has questions, but none of the selected type. */
+    val isFilteredEmpty: Boolean get() = !isLoading && items.isNotEmpty() && visibleItems.isEmpty()
+
+    val filteredEmptyMessage: String
+        get() = if (filter == QuestionFilter.CQ) "এখানে কোনো সৃজনশীল প্রশ্ন নেই।" else "এখানে কোনো বহুনির্বাচনি প্রশ্ন নেই।"
+
     val emptyMessage: String
         get() = when (source) {
             is QuestionListSource.Search -> if (query.isBlank()) "প্রশ্নের যেকোনো শব্দ লিখে খুঁজুন।" else "কোনো প্রশ্ন পাওয়া যায়নি।"

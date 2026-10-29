@@ -83,7 +83,7 @@ class ScreenshotCaptureTest {
         capture("android-5-subject-papers")
 
         composeRule.onNodeWithTag("tab_chapters").performClick()
-        composeRule.onNodeWithTag("chapter_ssc-physics-3").performClick()
+        composeRule.onNodeWithTag("chapter_ssc-physics-2").performClick()
         waitFor(hasTestTag("question_list"))
         composeRule.onNodeWithTag("filter_cq").performClick()
         composeRule.waitForIdle()

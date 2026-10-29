@@ -180,6 +180,16 @@ private fun QuestionList(state: QuestionListState, onIntent: (QuestionListIntent
                 }
             }
         }
+        if (state.isFilteredEmpty) {
+            item(key = "filtered-empty") {
+                Text(
+                    state.filteredEmptyMessage,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 24.dp).testTag("filtered_empty"),
+                )
+            }
+        }
         items(state.visibleItems, key = { it.question.id }) { item ->
             if (item.question.isMcq) {
                 McqCard(item, state, onIntent, Modifier.animateItem())

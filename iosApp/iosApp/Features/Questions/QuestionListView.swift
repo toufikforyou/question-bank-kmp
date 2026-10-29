@@ -66,6 +66,14 @@ struct QuestionListView: View {
                         .accessibilityIdentifier("list.practise")
                     }
 
+                    if state.isFilteredEmpty {
+                        Text(state.filteredEmptyMessage)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 24)
+                            .accessibilityIdentifier("list.filteredEmpty")
+                    }
                     ForEach(state.visibleItems, id: \.question.id) { item in
                         if item.question.isMcq {
                             McqCard(item: item, state: state, viewModel: viewModel)

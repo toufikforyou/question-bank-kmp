@@ -38,7 +38,7 @@ final class ScreenshotTests: XCTestCase {
         capture("ios-5-subject-papers")
 
         app.segmentedControls.buttons["অধ্যায়ভিত্তিক"].tap()
-        app.buttons["subject.chapter.ssc-physics-3"].tap()
+        app.buttons["subject.chapter.ssc-physics-2"].tap()
         XCTAssertTrue(app.buttons["list.practise"].waitForExistence(timeout: 10))
         app.segmentedControls.buttons["সৃজনশীল"].tap()
         let reveal = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'question.reveal.'")).firstMatch
