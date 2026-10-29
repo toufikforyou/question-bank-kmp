@@ -1,0 +1,101 @@
+CREATE TABLE UserProfileEntity (
+    id TEXT NOT NULL PRIMARY KEY,
+    display_name TEXT NOT NULL,
+    created_at INTEGER NOT NULL
+);
+
+CREATE TABLE SeedMetaEntity (
+    id INTEGER NOT NULL PRIMARY KEY CHECK (id = 1),
+    version INTEGER NOT NULL
+);
+
+CREATE TABLE CategoryEntity (
+    id TEXT NOT NULL PRIMARY KEY,
+    title TEXT NOT NULL,
+    description TEXT NOT NULL,
+    sort_order INTEGER NOT NULL
+);
+
+CREATE TABLE QuestionEntity (
+    id TEXT NOT NULL PRIMARY KEY,
+    category_id TEXT NOT NULL,
+    prompt TEXT NOT NULL,
+    options_json TEXT NOT NULL,
+    correct_option_id TEXT NOT NULL,
+    explanation TEXT,
+    difficulty TEXT NOT NULL,
+    sort_order INTEGER NOT NULL
+);
+
+CREATE INDEX question_category_idx ON QuestionEntity(category_id);
+
+CREATE TABLE BookmarkEntity (
+    question_id TEXT NOT NULL PRIMARY KEY,
+    created_at INTEGER NOT NULL
+);
+
+CREATE TABLE AttemptEntity (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    question_id TEXT NOT NULL,
+    category_id TEXT NOT NULL,
+    selected_option_id TEXT NOT NULL,
+    is_correct INTEGER NOT NULL,
+    answered_at INTEGER NOT NULL
+);
+
+CREATE INDEX attempt_time_idx ON AttemptEntity(answered_at);
+
+-- Profile
+selectProfile:
+SELECT * FROM UserProfileEntity LIMIT 1;
+
+insertProfile:
+INSERT INTO UserProfileEntity(id, display_name, created_at) VALUES (?, ?, ?);
+
+-- Seed bookkeeping
+selectSeedVersion:
+SELECT version FROM SeedMetaEntity WHERE id = 1;
+
+upsertSeedVersion:
+INSERT OR REPLACE INTO SeedMetaEntity(id, version) VALUES (1, ?);
+
+-- Catalog
+upsertCategory:
+INSERT OR REPLACE INTO CategoryEntity(id, title, description, sort_order) VALUES (?, ?, ?, ?);
+
+upsertQuestion:
+INSERT OR REPLACE INTO QuestionEntity(id, category_id, prompt, options_json, correct_option_id, explanation, difficulty, sort_order)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+
+deleteAllCategories:
+DELETE FROM CategoryEntity;
+
+deleteAllQuestions:
+DELETE FROM QuestionEntity;
+
+deleteOrphanBookmarks:
+DELETE FROM BookmarkEntity WHERE question_id NOT IN (SELECT id FROM QuestionEntity);
+
+selectCategories:
+SELECT * FROM CategoryEntity ORDER BY sort_order;
+
+selectQuestions:
+SELECT * FROM QuestionEntity ORDER BY sort_order;
+
+-- Bookmarks
+selectBookmarkIds:
+SELECT question_id FROM BookmarkEntity ORDER BY created_at DESC, rowid DESC;
+
+insertBookmark:
+INSERT OR REPLACE INTO BookmarkEntity(question_id, created_at) VALUES (?, ?);
+
+deleteBookmark:
+DELETE FROM BookmarkEntity WHERE question_id = ?;
+
+-- Attempts
+insertAttempt:
+INSERT INTO AttemptEntity(question_id, category_id, selected_option_id, is_correct, answered_at)
+VALUES (?, ?, ?, ?, ?);
+
+selectAttempts:
+SELECT * FROM AttemptEntity ORDER BY answered_at ASC, id ASC;

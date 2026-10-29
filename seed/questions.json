@@ -1,0 +1,651 @@
+{
+  "version": 1,
+  "categories": [
+    {
+      "id": "kotlin",
+      "title": "Kotlin",
+      "description": "Language fundamentals, coroutines and the standard library."
+    },
+    {
+      "id": "science",
+      "title": "General Science",
+      "description": "Physics, chemistry and biology essentials."
+    },
+    {
+      "id": "geography",
+      "title": "World Geography",
+      "description": "Capitals, landmarks and the shape of our planet."
+    },
+    {
+      "id": "math",
+      "title": "Mathematics",
+      "description": "Arithmetic, geometry and number sense."
+    }
+  ],
+  "questions": [
+    {
+      "id": "kotlin-001",
+      "categoryId": "kotlin",
+      "prompt": "Which keyword declares a read-only property in Kotlin?",
+      "options": [
+        {
+          "id": "a",
+          "text": "var"
+        },
+        {
+          "id": "b",
+          "text": "val"
+        },
+        {
+          "id": "c",
+          "text": "const var"
+        },
+        {
+          "id": "d",
+          "text": "let"
+        }
+      ],
+      "correctOptionId": "b",
+      "explanation": "`val` declares a read-only reference; `var` declares a mutable one.",
+      "difficulty": "EASY"
+    },
+    {
+      "id": "kotlin-002",
+      "categoryId": "kotlin",
+      "prompt": "What is the `?:` operator called?",
+      "options": [
+        {
+          "id": "a",
+          "text": "Safe-call operator"
+        },
+        {
+          "id": "b",
+          "text": "Elvis operator"
+        },
+        {
+          "id": "c",
+          "text": "Not-null assertion"
+        },
+        {
+          "id": "d",
+          "text": "Range operator"
+        }
+      ],
+      "correctOptionId": "b",
+      "explanation": "The Elvis operator returns its left side when it is not null, otherwise the right side.",
+      "difficulty": "EASY"
+    },
+    {
+      "id": "kotlin-003",
+      "categoryId": "kotlin",
+      "prompt": "Which coroutine builder returns a Deferred result?",
+      "options": [
+        {
+          "id": "a",
+          "text": "launch"
+        },
+        {
+          "id": "b",
+          "text": "async"
+        },
+        {
+          "id": "c",
+          "text": "runBlocking"
+        },
+        {
+          "id": "d",
+          "text": "coroutineScope"
+        }
+      ],
+      "correctOptionId": "b",
+      "explanation": "`async` returns a `Deferred<T>` whose value you obtain with `await()`.",
+      "difficulty": "MEDIUM"
+    },
+    {
+      "id": "kotlin-004",
+      "categoryId": "kotlin",
+      "prompt": "What is the default visibility modifier in Kotlin?",
+      "options": [
+        {
+          "id": "a",
+          "text": "internal"
+        },
+        {
+          "id": "b",
+          "text": "private"
+        },
+        {
+          "id": "c",
+          "text": "public"
+        },
+        {
+          "id": "d",
+          "text": "protected"
+        }
+      ],
+      "correctOptionId": "c",
+      "explanation": "Declarations without a modifier are `public` by default.",
+      "difficulty": "EASY"
+    },
+    {
+      "id": "kotlin-005",
+      "categoryId": "kotlin",
+      "prompt": "Which function returns the first element matching a predicate, or null if none match?",
+      "options": [
+        {
+          "id": "a",
+          "text": "first"
+        },
+        {
+          "id": "b",
+          "text": "find"
+        },
+        {
+          "id": "c",
+          "text": "single"
+        },
+        {
+          "id": "d",
+          "text": "filter"
+        }
+      ],
+      "correctOptionId": "b",
+      "explanation": "`find` is an alias of `firstOrNull` and returns null instead of throwing.",
+      "difficulty": "MEDIUM"
+    },
+    {
+      "id": "kotlin-006",
+      "categoryId": "kotlin",
+      "prompt": "What does a `data class` generate automatically?",
+      "options": [
+        {
+          "id": "a",
+          "text": "A database table"
+        },
+        {
+          "id": "b",
+          "text": "equals, hashCode, toString and copy"
+        },
+        {
+          "id": "c",
+          "text": "A singleton instance"
+        },
+        {
+          "id": "d",
+          "text": "A REST endpoint"
+        }
+      ],
+      "correctOptionId": "b",
+      "explanation": "Data classes derive equals/hashCode/toString/copy and componentN functions from the primary constructor.",
+      "difficulty": "EASY"
+    },
+    {
+      "id": "science-001",
+      "categoryId": "science",
+      "prompt": "What is the chemical symbol for gold?",
+      "options": [
+        {
+          "id": "a",
+          "text": "Ag"
+        },
+        {
+          "id": "b",
+          "text": "Gd"
+        },
+        {
+          "id": "c",
+          "text": "Au"
+        },
+        {
+          "id": "d",
+          "text": "Go"
+        }
+      ],
+      "correctOptionId": "c",
+      "explanation": "Au comes from the Latin word for gold, aurum.",
+      "difficulty": "EASY"
+    },
+    {
+      "id": "science-002",
+      "categoryId": "science",
+      "prompt": "Which planet is known as the Red Planet?",
+      "options": [
+        {
+          "id": "a",
+          "text": "Venus"
+        },
+        {
+          "id": "b",
+          "text": "Mars"
+        },
+        {
+          "id": "c",
+          "text": "Jupiter"
+        },
+        {
+          "id": "d",
+          "text": "Mercury"
+        }
+      ],
+      "correctOptionId": "b",
+      "explanation": "Iron oxide on its surface gives Mars its reddish colour.",
+      "difficulty": "EASY"
+    },
+    {
+      "id": "science-003",
+      "categoryId": "science",
+      "prompt": "Which organelle produces most of a cell's ATP?",
+      "options": [
+        {
+          "id": "a",
+          "text": "Nucleus"
+        },
+        {
+          "id": "b",
+          "text": "Ribosome"
+        },
+        {
+          "id": "c",
+          "text": "Mitochondrion"
+        },
+        {
+          "id": "d",
+          "text": "Golgi apparatus"
+        }
+      ],
+      "correctOptionId": "c",
+      "explanation": "Mitochondria generate ATP through cellular respiration.",
+      "difficulty": "MEDIUM"
+    },
+    {
+      "id": "science-004",
+      "categoryId": "science",
+      "prompt": "Approximately how fast does light travel in a vacuum?",
+      "options": [
+        {
+          "id": "a",
+          "text": "30,000 km/s"
+        },
+        {
+          "id": "b",
+          "text": "150,000 km/s"
+        },
+        {
+          "id": "c",
+          "text": "300,000 km/s"
+        },
+        {
+          "id": "d",
+          "text": "3,000,000 km/s"
+        }
+      ],
+      "correctOptionId": "c",
+      "explanation": "The speed of light is about 299,792 km/s.",
+      "difficulty": "MEDIUM"
+    },
+    {
+      "id": "science-005",
+      "categoryId": "science",
+      "prompt": "Which gas do plants absorb from the air for photosynthesis?",
+      "options": [
+        {
+          "id": "a",
+          "text": "Oxygen"
+        },
+        {
+          "id": "b",
+          "text": "Carbon dioxide"
+        },
+        {
+          "id": "c",
+          "text": "Nitrogen"
+        },
+        {
+          "id": "d",
+          "text": "Hydrogen"
+        }
+      ],
+      "correctOptionId": "b",
+      "explanation": "Plants take in CO2 and release oxygen during photosynthesis.",
+      "difficulty": "EASY"
+    },
+    {
+      "id": "science-006",
+      "categoryId": "science",
+      "prompt": "What is the hardest naturally occurring mineral?",
+      "options": [
+        {
+          "id": "a",
+          "text": "Quartz"
+        },
+        {
+          "id": "b",
+          "text": "Topaz"
+        },
+        {
+          "id": "c",
+          "text": "Corundum"
+        },
+        {
+          "id": "d",
+          "text": "Diamond"
+        }
+      ],
+      "correctOptionId": "d",
+      "explanation": "Diamond tops the Mohs hardness scale at 10.",
+      "difficulty": "MEDIUM"
+    },
+    {
+      "id": "geography-001",
+      "categoryId": "geography",
+      "prompt": "What is the capital of Australia?",
+      "options": [
+        {
+          "id": "a",
+          "text": "Sydney"
+        },
+        {
+          "id": "b",
+          "text": "Melbourne"
+        },
+        {
+          "id": "c",
+          "text": "Canberra"
+        },
+        {
+          "id": "d",
+          "text": "Perth"
+        }
+      ],
+      "correctOptionId": "c",
+      "explanation": "Canberra was purpose-built as the capital as a compromise between Sydney and Melbourne.",
+      "difficulty": "MEDIUM"
+    },
+    {
+      "id": "geography-002",
+      "categoryId": "geography",
+      "prompt": "Which is the largest ocean on Earth?",
+      "options": [
+        {
+          "id": "a",
+          "text": "Atlantic"
+        },
+        {
+          "id": "b",
+          "text": "Indian"
+        },
+        {
+          "id": "c",
+          "text": "Arctic"
+        },
+        {
+          "id": "d",
+          "text": "Pacific"
+        }
+      ],
+      "correctOptionId": "d",
+      "explanation": "The Pacific covers roughly a third of Earth's surface.",
+      "difficulty": "EASY"
+    },
+    {
+      "id": "geography-003",
+      "categoryId": "geography",
+      "prompt": "What is the capital of Bangladesh?",
+      "options": [
+        {
+          "id": "a",
+          "text": "Chittagong"
+        },
+        {
+          "id": "b",
+          "text": "Dhaka"
+        },
+        {
+          "id": "c",
+          "text": "Sylhet"
+        },
+        {
+          "id": "d",
+          "text": "Khulna"
+        }
+      ],
+      "correctOptionId": "b",
+      "explanation": "Dhaka is the capital and largest city of Bangladesh.",
+      "difficulty": "EASY"
+    },
+    {
+      "id": "geography-004",
+      "categoryId": "geography",
+      "prompt": "Mount Everest sits on the border of which two countries?",
+      "options": [
+        {
+          "id": "a",
+          "text": "India and Nepal"
+        },
+        {
+          "id": "b",
+          "text": "Nepal and China"
+        },
+        {
+          "id": "c",
+          "text": "China and Bhutan"
+        },
+        {
+          "id": "d",
+          "text": "Pakistan and China"
+        }
+      ],
+      "correctOptionId": "b",
+      "explanation": "Everest straddles the border between Nepal and the Tibet Autonomous Region of China.",
+      "difficulty": "MEDIUM"
+    },
+    {
+      "id": "geography-005",
+      "categoryId": "geography",
+      "prompt": "What is the smallest country in the world by area?",
+      "options": [
+        {
+          "id": "a",
+          "text": "Monaco"
+        },
+        {
+          "id": "b",
+          "text": "San Marino"
+        },
+        {
+          "id": "c",
+          "text": "Vatican City"
+        },
+        {
+          "id": "d",
+          "text": "Liechtenstein"
+        }
+      ],
+      "correctOptionId": "c",
+      "explanation": "Vatican City covers about 0.49 square kilometres.",
+      "difficulty": "EASY"
+    },
+    {
+      "id": "geography-006",
+      "categoryId": "geography",
+      "prompt": "Which country has the most natural lakes?",
+      "options": [
+        {
+          "id": "a",
+          "text": "Russia"
+        },
+        {
+          "id": "b",
+          "text": "Canada"
+        },
+        {
+          "id": "c",
+          "text": "Finland"
+        },
+        {
+          "id": "d",
+          "text": "United States"
+        }
+      ],
+      "correctOptionId": "b",
+      "explanation": "Canada is home to more lakes than the rest of the world combined.",
+      "difficulty": "HARD"
+    },
+    {
+      "id": "math-001",
+      "categoryId": "math",
+      "prompt": "What is 7 multiplied by 8?",
+      "options": [
+        {
+          "id": "a",
+          "text": "54"
+        },
+        {
+          "id": "b",
+          "text": "56"
+        },
+        {
+          "id": "c",
+          "text": "58"
+        },
+        {
+          "id": "d",
+          "text": "64"
+        }
+      ],
+      "correctOptionId": "b",
+      "explanation": "7 x 8 = 56.",
+      "difficulty": "EASY"
+    },
+    {
+      "id": "math-002",
+      "categoryId": "math",
+      "prompt": "What is the value of pi rounded to two decimal places?",
+      "options": [
+        {
+          "id": "a",
+          "text": "3.12"
+        },
+        {
+          "id": "b",
+          "text": "3.14"
+        },
+        {
+          "id": "c",
+          "text": "3.16"
+        },
+        {
+          "id": "d",
+          "text": "3.41"
+        }
+      ],
+      "correctOptionId": "b",
+      "explanation": "Pi is approximately 3.14159.",
+      "difficulty": "EASY"
+    },
+    {
+      "id": "math-003",
+      "categoryId": "math",
+      "prompt": "What is the square root of 144?",
+      "options": [
+        {
+          "id": "a",
+          "text": "11"
+        },
+        {
+          "id": "b",
+          "text": "12"
+        },
+        {
+          "id": "c",
+          "text": "13"
+        },
+        {
+          "id": "d",
+          "text": "14"
+        }
+      ],
+      "correctOptionId": "b",
+      "explanation": "12 x 12 = 144.",
+      "difficulty": "EASY"
+    },
+    {
+      "id": "math-004",
+      "categoryId": "math",
+      "prompt": "What is the sum of the interior angles of a triangle?",
+      "options": [
+        {
+          "id": "a",
+          "text": "90 degrees"
+        },
+        {
+          "id": "b",
+          "text": "180 degrees"
+        },
+        {
+          "id": "c",
+          "text": "270 degrees"
+        },
+        {
+          "id": "d",
+          "text": "360 degrees"
+        }
+      ],
+      "correctOptionId": "b",
+      "explanation": "The interior angles of any triangle in Euclidean geometry add up to 180 degrees.",
+      "difficulty": "EASY"
+    },
+    {
+      "id": "math-005",
+      "categoryId": "math",
+      "prompt": "Which of these numbers is prime?",
+      "options": [
+        {
+          "id": "a",
+          "text": "21"
+        },
+        {
+          "id": "b",
+          "text": "27"
+        },
+        {
+          "id": "c",
+          "text": "29"
+        },
+        {
+          "id": "d",
+          "text": "33"
+        }
+      ],
+      "correctOptionId": "c",
+      "explanation": "29 has no divisors other than 1 and itself.",
+      "difficulty": "MEDIUM"
+    },
+    {
+      "id": "math-006",
+      "categoryId": "math",
+      "prompt": "What is 15% of 200?",
+      "options": [
+        {
+          "id": "a",
+          "text": "20"
+        },
+        {
+          "id": "b",
+          "text": "25"
+        },
+        {
+          "id": "c",
+          "text": "30"
+        },
+        {
+          "id": "d",
+          "text": "35"
+        }
+      ],
+      "correctOptionId": "c",
+      "explanation": "0.15 x 200 = 30.",
+      "difficulty": "MEDIUM"
+    }
+  ]
+}

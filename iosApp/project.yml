@@ -1,0 +1,94 @@
+name: iosApp
+options:
+  bundleIdPrefix: dev.toufikforyou
+  deploymentTarget:
+    iOS: "16.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    MARKETING_VERSION: "1.0.0"
+    CURRENT_PROJECT_VERSION: "1"
+    DEVELOPMENT_TEAM: ""
+    ENABLE_USER_SCRIPT_SANDBOXING: NO
+    FRAMEWORK_SEARCH_PATHS:
+      - "$(inherited)"
+      - "$(SRCROOT)/../shared/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)"
+targets:
+  iosApp:
+    type: application
+    platform: iOS
+    sources:
+      - path: iosApp
+      - path: ../seed/questions.json
+        buildPhase: resources
+    preBuildScripts:
+      - name: Compile Kotlin Shared Framework
+        basedOnDependencyAnalysis: false
+        script: |
+          if [ "YES" = "$OVERRIDE_KOTLIN_BUILD_IDE_SUPPORTED" ]; then
+            echo "Skipping Gradle build task invocation due to OVERRIDE_KOTLIN_BUILD_IDE_SUPPORTED being set to YES"
+            exit 0
+          fi
+          cd "$SRCROOT/.."
+          ./gradlew :shared:embedAndSignAppleFrameworkForXcode
+    settings:
+      base:
+        PRODUCT_NAME: QuestionBank
+        PRODUCT_BUNDLE_IDENTIFIER: dev.toufikforyou.questionbank
+        INFOPLIST_FILE: iosApp/Resources/Info.plist
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        OTHER_LDFLAGS:
+          - "$(inherited)"
+          - "-framework"
+          - "Shared"
+          - "-lsqlite3"
+        TARGETED_DEVICE_FAMILY: "1,2"
+        CODE_SIGN_STYLE: Automatic
+  iosAppTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: iosAppTests
+    dependencies:
+      - target: iosApp
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        PRODUCT_BUNDLE_IDENTIFIER: dev.toufikforyou.questionbank.tests
+        BUNDLE_LOADER: "$(TEST_HOST)"
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/QuestionBank.app/QuestionBank"
+        OTHER_LDFLAGS:
+          - "$(inherited)"
+          - "-framework"
+          - "Shared"
+  iosAppUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: iosAppUITests
+    dependencies:
+      - target: iosApp
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        PRODUCT_BUNDLE_IDENTIFIER: dev.toufikforyou.questionbank.uitests
+        TEST_TARGET_NAME: iosApp
+schemes:
+  iosApp:
+    build:
+      targets:
+        iosApp: all
+        iosAppTests: [test]
+        iosAppUITests: [test]
+    run:
+      config: Debug
+    test:
+      config: Debug
+      gatherCoverageData: true
+      targets:
+        - iosAppTests
+        - iosAppUITests
+    archive:
+      config: Release
