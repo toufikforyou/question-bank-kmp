@@ -3,38 +3,40 @@ import Shared
 
 struct QuizView: View {
     @StateObject private var viewModel: QuizViewModel
-    private let config: QuizConfig
+    private let request: QuizRequest
     private let onExit: () -> Void
 
-    init(dependencies: AppDependencies, config: QuizConfig, onExit: @escaping () -> Void) {
-        _viewModel = StateObject(
-            wrappedValue: QuizViewModel(store: dependencies.container.quizStore(), haptics: dependencies.haptics)
-        )
-        self.config = config
+    init(dependencies: AppDependencies, request: QuizRequest, onExit: @escaping () -> Void) {
+        _viewModel = StateObject(wrappedValue: QuizViewModel(store: dependencies.container.quizStore(), haptics: dependencies.haptics))
+        self.request = request
         self.onExit = onExit
     }
 
     var body: some View {
         content
-            .navigationTitle(config.title)
+            .navigationTitle(request.timed ? "পরীক্ষা" : "অনুশীলন")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
+                ToolbarItemGroup(placement: .navigationBarTrailing) {
+                    if let clock = viewModel.state.timerLabel, viewModel.state.status == .inProgress {
+                        Label(clock, systemImage: "timer")
+                            .labelStyle(.titleAndIcon)
+                            .font(.subheadline.monospacedDigit().weight(.semibold))
+                            .foregroundStyle(viewModel.state.isTimeRunningOut ? Color.red : Color.primary)
+                            .accessibilityIdentifier("quiz.timer")
+                    }
                     if let question = viewModel.state.currentQuestion {
                         Button(action: viewModel.toggleBookmark) {
                             Image(systemName: question.isBookmarked ? "bookmark.fill" : "bookmark")
                         }
-                        .accessibilityLabel(question.isBookmarked ? "Remove bookmark" : "Bookmark question")
+                        .accessibilityLabel(question.isBookmarked ? "সংরক্ষণ বাতিল" : "সংরক্ষণ করুন")
                         .accessibilityIdentifier("quiz.bookmark")
                     }
                 }
             }
-            .task { viewModel.startIfNeeded(config) }
-            .alert(
-                "Something went wrong",
-                isPresented: Binding(get: { viewModel.message != nil }, set: { if !$0 { viewModel.message = nil } })
-            ) {
-                Button("OK", role: .cancel) {}
+            .task { viewModel.startIfNeeded(request) }
+            .alert("কিছু একটা ভুল হয়েছে", isPresented: Binding(get: { viewModel.message != nil }, set: { if !$0 { viewModel.message = nil } })) {
+                Button("ঠিক আছে", role: .cancel) {}
             } message: {
                 Text(viewModel.message ?? "")
             }
@@ -46,23 +48,15 @@ struct QuizView: View {
         case .inProgress:
             QuizQuestionView(viewModel: viewModel)
         case .finished:
-            QuizResultView(score: viewModel.state.score, onRestart: viewModel.restart, onDone: onExit)
+            QuizResultView(state: viewModel.state, onRestart: viewModel.restart, onDone: onExit)
         case .empty:
-            EmptyStateView(
-                systemImage: "tray",
-                title: "Nothing to practise yet",
-                message: viewModel.state.errorMessage ?? "There are no questions here.",
-                actionTitle: "Back to home",
-                action: onExit
-            )
+            EmptyStateView(systemImage: "tray", title: "অনুশীলনের প্রশ্ন নেই",
+                           message: viewModel.state.errorMessage ?? "এখানে কোনো বহুনির্বাচনি প্রশ্ন নেই।",
+                           actionTitle: "ফিরে যান", action: onExit)
         case .error:
-            EmptyStateView(
-                systemImage: "exclamationmark.triangle",
-                title: "Something went wrong",
-                message: viewModel.state.errorMessage ?? "Please try again.",
-                actionTitle: "Retry",
-                action: viewModel.restart
-            )
+            EmptyStateView(systemImage: "exclamationmark.triangle", title: "কিছু একটা ভুল হয়েছে",
+                           message: viewModel.state.errorMessage ?? "আবার চেষ্টা করুন।",
+                           actionTitle: "আবার চেষ্টা করুন", action: viewModel.restart)
         default:
             ProgressView()
         }
@@ -81,7 +75,7 @@ struct QuizQuestionView: View {
                 .tint(.accentColor)
                 .accessibilityIdentifier("quiz.progress")
 
-            Text("Question \(state.questionNumber) of \(state.totalQuestions)")
+            Text(state.progressLabel)
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .accessibilityIdentifier("quiz.counter")
@@ -103,7 +97,7 @@ struct QuizQuestionView: View {
 
             if state.isAnswerRevealed {
                 Button(action: viewModel.next) {
-                    Text(state.isLastQuestion ? "See results" : "Next question")
+                    Text(state.isLastQuestion ? "ফলাফল দেখুন" : "পরের প্রশ্ন")
                         .font(.headline)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 6)
@@ -141,16 +135,13 @@ private struct QuestionCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text(question.difficulty.name.capitalized)
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.purple)
             Text(question.prompt)
                 .font(.title3.weight(.semibold))
                 .accessibilityAddTraits(.isHeader)
 
             ForEach(Array(question.options.enumerated()), id: \.element.id) { index, option in
                 OptionRow(
-                    label: String(UnicodeScalar(UInt8(65 + index))),
+                    label: option.id,
                     text: option.text,
                     optionState: state.optionState(optionId: option.id),
                     action: { onSelect(option.id) }
@@ -160,14 +151,12 @@ private struct QuestionCard: View {
 
             if let answer = state.lastAnswer {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(answer.isCorrect ? "Correct!" : "Not quite")
+                    Text(answer.isCorrect ? "সঠিক উত্তর!" : "ভুল হয়েছে")
                         .font(.headline)
                         .foregroundStyle(answer.isCorrect ? Color.green : Color.red)
                         .accessibilityIdentifier("quiz.feedback")
                     if let explanation = answer.explanation {
-                        Text(explanation)
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
+                        Text(explanation).font(.subheadline).foregroundStyle(.secondary)
                     }
                 }
                 .transition(.opacity.combined(with: .move(edge: .top)))

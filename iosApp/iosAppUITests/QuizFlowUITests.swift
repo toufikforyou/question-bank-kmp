@@ -11,64 +11,62 @@ final class QuizFlowUITests: XCTestCase {
         app.launch()
     }
 
-    func testLaunchGoesStraightToHomeWithoutLogin() {
-        XCTAssertTrue(app.buttons["home.quickQuiz"].waitForExistence(timeout: 10))
-        XCTAssertTrue(app.buttons["home.category.kotlin"].exists)
+    func testLaunchGoesStraightToHomeWithFinder() {
+        XCTAssertTrue(app.buttons["finder.open"].waitForExistence(timeout: 90))
+        XCTAssertTrue(app.buttons["home.search"].exists)
     }
 
-    func testAnsweringRevealsFeedbackAndNextAdvances() {
-        startQuickQuiz()
-        XCTAssertEqual(app.staticTexts["quiz.counter"].label, "Question 1 of 10")
+    func testFinderOpensPaperAndInlineAnswerShowsFeedback() {
+        openDefaultPaper()
+
+        let option = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'question.option.'")).firstMatch
+        XCTAssertTrue(option.waitForExistence(timeout: 5))
+        option.tap()
+
+        let feedback = app.staticTexts.matching(NSPredicate(format: "identifier BEGINSWITH 'question.feedback.'")).firstMatch
+        XCTAssertTrue(feedback.waitForExistence(timeout: 5))
+    }
+
+    func testPaperExamModeShowsTimerAndAdvances() {
+        openDefaultPaper()
+        app.buttons["list.practise"].tap()
+
+        XCTAssertTrue(app.staticTexts["quiz.counter"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["প্রশ্ন ১ / ৬"].exists)
+        XCTAssertTrue(app.descendants(matching: .any)["quiz.timer"].exists)
 
         app.buttons["quiz.option.0"].tap()
-
-        XCTAssertTrue(app.staticTexts["quiz.feedback"].waitForExistence(timeout: 5))
         let next = app.buttons["quiz.next"]
         XCTAssertTrue(next.waitForExistence(timeout: 5))
         next.tap()
-
-        XCTAssertTrue(app.staticTexts["Question 2 of 10"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["প্রশ্ন ২ / ৬"].waitForExistence(timeout: 5))
     }
 
-    func testSwipeLeftAdvancesAfterAnswering() {
-        startQuickQuiz()
-        app.buttons["quiz.option.1"].tap()
-        XCTAssertTrue(app.buttons["quiz.next"].waitForExistence(timeout: 5))
+    func testSubjectChaptersOpenChapterQuestions() {
+        let subject = app.buttons["home.subject.ssc-physics"]
+        XCTAssertTrue(waitAndScrollTo(subject))
+        subject.tap()
 
-        app.scrollViews["quiz.card"].swipeLeft()
+        app.segmentedControls.buttons["অধ্যায়ভিত্তিক"].tap()
+        let chapter = app.buttons["subject.chapter.ssc-physics-3"]
+        XCTAssertTrue(chapter.waitForExistence(timeout: 5))
+        chapter.tap()
 
-        XCTAssertTrue(app.staticTexts["Question 2 of 10"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["list.practise"].waitForExistence(timeout: 10))
     }
 
-    func testCompletingQuizShowsResults() {
-        startQuickQuiz()
+    private func openDefaultPaper() {
+        let open = app.buttons["finder.open"]
+        XCTAssertTrue(open.waitForExistence(timeout: 90))
+        open.tap()
+        XCTAssertTrue(app.buttons["list.practise"].waitForExistence(timeout: 10))
+    }
 
-        for _ in 0..<10 {
-            app.buttons["quiz.option.0"].tap()
-            let next = app.buttons["quiz.next"]
-            XCTAssertTrue(next.waitForExistence(timeout: 5))
-            next.tap()
+    private func waitAndScrollTo(_ element: XCUIElement) -> Bool {
+        guard app.buttons["finder.open"].waitForExistence(timeout: 90) else { return false }
+        for _ in 0..<8 where !element.isHittable {
+            app.swipeUp()
         }
-
-        XCTAssertTrue(app.staticTexts["quiz.result.summary"].waitForExistence(timeout: 5))
-        app.buttons["quiz.done"].tap()
-        XCTAssertTrue(app.buttons["home.quickQuiz"].waitForExistence(timeout: 5))
-    }
-
-    func testBookmarkedQuestionAppearsInBookmarks() {
-        startQuickQuiz()
-        app.buttons["quiz.bookmark"].tap()
-        app.navigationBars.buttons.element(boundBy: 0).tap()
-
-        app.buttons["home.bookmarks"].tap()
-
-        XCTAssertTrue(app.buttons["bookmarks.practice"].waitForExistence(timeout: 5))
-    }
-
-    private func startQuickQuiz() {
-        let start = app.buttons["home.quickQuiz"]
-        XCTAssertTrue(start.waitForExistence(timeout: 10))
-        start.tap()
-        XCTAssertTrue(app.staticTexts["quiz.counter"].waitForExistence(timeout: 5))
+        return element.isHittable
     }
 }

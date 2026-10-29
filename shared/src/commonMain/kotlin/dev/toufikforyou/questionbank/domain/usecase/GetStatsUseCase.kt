@@ -1,8 +1,8 @@
 package dev.toufikforyou.questionbank.domain.usecase
 
 import dev.toufikforyou.questionbank.domain.model.AnswerRecord
-import dev.toufikforyou.questionbank.domain.model.Category
-import dev.toufikforyou.questionbank.domain.model.CategoryStats
+import dev.toufikforyou.questionbank.domain.model.Subject
+import dev.toufikforyou.questionbank.domain.model.SubjectStats
 import dev.toufikforyou.questionbank.domain.model.UserStats
 import dev.toufikforyou.questionbank.domain.model.percentOf
 import dev.toufikforyou.questionbank.domain.repository.AttemptRepository
@@ -10,6 +10,7 @@ import dev.toufikforyou.questionbank.domain.repository.QuestionRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flow
 
 class GetStatsUseCase(
     private val attemptRepository: AttemptRepository,
@@ -17,10 +18,10 @@ class GetStatsUseCase(
 ) {
     operator fun invoke(): Flow<UserStats> = combine(
         attemptRepository.observeAttempts(),
-        questionRepository.observeCategories(),
+        flow { emit(questionRepository.getCatalog().subjects) },
         questionRepository.observeBookmarkedQuestions(),
-    ) { attempts, categories, bookmarks ->
-        StatsCalculator.calculate(attempts, categories, bookmarks.size)
+    ) { attempts, subjects, bookmarks ->
+        StatsCalculator.calculate(attempts, subjects, bookmarks.size)
     }.distinctUntilChanged()
 }
 
@@ -28,7 +29,7 @@ class GetStatsUseCase(
 object StatsCalculator {
     fun calculate(
         attempts: List<AnswerRecord>,
-        categories: List<Category>,
+        subjects: List<Subject>,
         bookmarkedCount: Int,
     ): UserStats {
         val ordered = attempts.sortedBy { it.answeredAtMillis }
@@ -41,13 +42,15 @@ object StatsCalculator {
             if (run > best) best = run
         }
 
-        val byCategory = ordered.groupBy { it.categoryId }
-        val categoryStats = categories.map { category ->
-            val answers = byCategory[category.id].orEmpty()
+        val bySubject = ordered.groupBy { it.subjectId }
+        // Only subjects the learner has practised, so the list stays short and relevant.
+        val subjectStats = subjects.filter { it.id in bySubject }.map { subject ->
+            val answers = bySubject[subject.id].orEmpty()
             val correct = answers.count { it.isCorrect }
-            CategoryStats(
-                categoryId = category.id,
-                title = category.title,
+            SubjectStats(
+                subjectId = subject.id,
+                exam = subject.exam,
+                title = subject.name,
                 answered = answers.size,
                 correct = correct,
                 accuracyPercent = percentOf(correct, answers.size),
@@ -61,7 +64,7 @@ object StatsCalculator {
             currentStreak = run,
             bestStreak = best,
             bookmarkedCount = bookmarkedCount,
-            categoryStats = categoryStats,
+            subjectStats = subjectStats,
         )
     }
 }

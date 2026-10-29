@@ -1,7 +1,10 @@
 package dev.toufikforyou.questionbank.domain.repository
 
 import dev.toufikforyou.questionbank.domain.model.AnswerRecord
-import dev.toufikforyou.questionbank.domain.model.Category
+import dev.toufikforyou.questionbank.domain.model.Catalog
+import dev.toufikforyou.questionbank.domain.model.ExamType
+import dev.toufikforyou.questionbank.domain.model.PaperKey
+import dev.toufikforyou.questionbank.domain.model.PaperSummary
 import dev.toufikforyou.questionbank.domain.model.Question
 import dev.toufikforyou.questionbank.domain.model.UserProfile
 import kotlinx.coroutines.flow.Flow
@@ -13,9 +16,20 @@ interface QuestionRepository {
     /** Imports bundled seed data if the local database is missing or outdated. Idempotent. */
     suspend fun ensureSeeded()
 
-    fun observeCategories(): Flow<List<Category>>
+    suspend fun getCatalog(): Catalog
 
-    suspend fun getQuestions(categoryId: String? = null): List<Question>
+    /** Every board/year paper on record for a subject. */
+    suspend fun getPaperSummaries(subjectId: String): List<PaperSummary>
+
+    /** Questions of one board paper, in paper order. Empty if the paper is not on record. */
+    suspend fun getPaperQuestions(key: PaperKey): List<Question>
+
+    /** Most frequently set questions first. */
+    suspend fun getChapterQuestions(chapterId: String): List<Question>
+
+    suspend fun getSubjectQuestions(subjectId: String): List<Question>
+
+    suspend fun search(query: String, exam: ExamType, limit: Int): List<Question>
 
     suspend fun getQuestion(id: String): Question?
 

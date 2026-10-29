@@ -3,12 +3,27 @@ package dev.toufikforyou.questionbank.data.repository
 import dev.toufikforyou.questionbank.data.cache.SuspendLazy
 import dev.toufikforyou.questionbank.data.db.QuestionBankDatabase
 import dev.toufikforyou.questionbank.data.local.encodeOptions
+import dev.toufikforyou.questionbank.data.local.encodeParts
+import dev.toufikforyou.questionbank.data.local.searchText
 import dev.toufikforyou.questionbank.data.local.toDomain
+import dev.toufikforyou.questionbank.data.seed.SeedAppearance
+import dev.toufikforyou.questionbank.data.seed.SeedBundle
 import dev.toufikforyou.questionbank.data.seed.SeedParser
 import dev.toufikforyou.questionbank.data.seed.SeedReader
-import dev.toufikforyou.questionbank.domain.model.Category
+import dev.toufikforyou.questionbank.domain.model.Appearance
+import dev.toufikforyou.questionbank.domain.model.Board
+import dev.toufikforyou.questionbank.domain.model.Catalog
+import dev.toufikforyou.questionbank.domain.model.Chapter
+import dev.toufikforyou.questionbank.domain.model.Exam
+import dev.toufikforyou.questionbank.domain.model.ExamType
+import dev.toufikforyou.questionbank.domain.model.PaperKey
+import dev.toufikforyou.questionbank.domain.model.PaperSummary
 import dev.toufikforyou.questionbank.domain.model.Question
+import dev.toufikforyou.questionbank.domain.model.QuestionType
+import dev.toufikforyou.questionbank.domain.model.StudyGroup
+import dev.toufikforyou.questionbank.domain.model.Subject
 import dev.toufikforyou.questionbank.domain.model.TimeProvider
+import dev.toufikforyou.questionbank.domain.model.YearNote
 import dev.toufikforyou.questionbank.domain.repository.QuestionRepository
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
@@ -23,10 +38,12 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
 /**
- * SQLite-backed question repository with a two-level memory cache:
- *  - the catalog (categories + questions) is immutable after seeding, so it is loaded once;
- *  - bookmark ids are mirrored in a StateFlow and updated write-through.
- * Screens therefore get their data synchronously from memory after the first load.
+ * SQLite-backed question bank with an in-memory cache:
+ *  - the catalog (exams, boards, subjects, chapters) is loaded once;
+ *  - questions are cached by id the first time any screen loads them, together with the
+ *    id lists of papers and chapters, so revisiting a screen never touches the database;
+ *  - bookmark ids are mirrored in a StateFlow and written through.
+ * The bank is immutable after seeding, which keeps the cache trivially consistent.
  */
 class SqlDelightQuestionRepository(
     private val database: QuestionBankDatabase,
@@ -37,10 +54,16 @@ class SqlDelightQuestionRepository(
 
     private val queries get() = database.questionBankQueries
     private val seedMutex = Mutex()
+    private val cacheMutex = Mutex()
     private val bookmarkMutex = Mutex()
     private var seeded = false
 
     private val catalog = SuspendLazy { loadCatalog() }
+    private val questionsById = HashMap<String, Question>()
+    private val paperIds = HashMap<PaperKey, List<String>>()
+    private val chapterIds = HashMap<String, List<String>>()
+    private val subjectIds = HashMap<String, List<String>>()
+    private val summaries = HashMap<String, List<PaperSummary>>()
     private val bookmarkIds = MutableStateFlow<List<String>?>(null)
 
     override suspend fun ensureSeeded() {
@@ -48,31 +71,15 @@ class SqlDelightQuestionRepository(
         seedMutex.withLock {
             if (seeded) return
             withContext(ioDispatcher) {
-                val bundle = SeedParser.parse(seedReader.read())
-                val installed = queries.selectSeedVersion().executeAsOneOrNull() ?: 0L
-                if (installed < bundle.version) {
-                    database.transaction {
-                        queries.deleteAllQuestions()
-                        queries.deleteAllCategories()
-                        bundle.categories.forEachIndexed { index, c ->
-                            queries.upsertCategory(c.id, c.title, c.description, index.toLong())
-                        }
-                        bundle.questions.forEachIndexed { index, q ->
-                            queries.upsertQuestion(
-                                id = q.id,
-                                category_id = q.categoryId,
-                                prompt = q.prompt,
-                                options_json = encodeOptions(q.options),
-                                correct_option_id = q.correctOptionId,
-                                explanation = q.explanation,
-                                difficulty = q.difficulty.uppercase(),
-                                sort_order = index.toLong(),
-                            )
-                        }
-                        queries.deleteOrphanBookmarks()
-                        queries.upsertSeedVersion(bundle.version.toLong())
-                    }
+                val installed = queries.selectSeedMeta().executeAsOneOrNull()?.version ?: 0L
+                val raw = seedReader.read()
+                val available = SeedParser.peekVersion(raw)
+                if (available == null || installed < available) {
+                    import(SeedParser.parse(raw))
                     catalog.invalidate()
+                    cacheMutex.withLock {
+                        questionsById.clear(); paperIds.clear(); chapterIds.clear(); subjectIds.clear(); summaries.clear()
+                    }
                     bookmarkIds.value = null
                 }
             }
@@ -80,31 +87,103 @@ class SqlDelightQuestionRepository(
         }
     }
 
-    override fun observeCategories(): Flow<List<Category>> = flow {
-        emit(catalog().categories)
+    private fun import(bundle: SeedBundle) = database.transaction {
+        queries.clearAppearances()
+        queries.clearQuestions()
+        queries.clearChapters()
+        queries.clearSubjects()
+        queries.clearNotes()
+        queries.clearBoards()
+        queries.clearExams()
+        bundle.exams.forEachIndexed { i, e -> queries.insertExam(e.id, e.name, e.fullName, i.toLong()) }
+        bundle.boards.forEachIndexed { i, b -> queries.insertBoard(b.id, b.name, b.nameEn, i.toLong()) }
+        bundle.notes.forEach { queries.insertNote(it.exam, it.year.toLong(), it.text) }
+        bundle.subjects.forEachIndexed { i, s ->
+            queries.insertSubject(s.id, s.exam, s.name, s.nameEn, s.code, s.group, i.toLong())
+            s.chapters.forEach { c -> queries.insertChapter(c.id, s.id, c.number.toLong(), c.name) }
+        }
+        bundle.questions.forEach { q ->
+            queries.insertQuestion(
+                id = q.id,
+                subject_id = q.subjectId,
+                chapter_id = q.chapterId,
+                type = q.type,
+                prompt = q.prompt ?: q.stem.orEmpty(),
+                options_json = encodeOptions(q.options),
+                correct_option_id = q.correctOptionId,
+                explanation = q.explanation,
+                parts_json = encodeParts(q.parts),
+                search_text = q.searchText(),
+                appearance_count = q.appearances.size.toLong(),
+            )
+            q.appearances.mapNotNull(SeedAppearance::parse).forEach { a ->
+                queries.insertAppearance(q.id, q.subjectId, a.boardId, a.year.toLong(), a.number.toLong())
+            }
+        }
+        queries.deleteOrphanBookmarks()
+        queries.upsertSeedMeta(bundle.version.toLong(), if (bundle.sample) 1L else 0L)
     }
 
-    override suspend fun getQuestions(categoryId: String?): List<Question> {
-        val snapshot = catalog()
-        val ids = bookmarks().toSet()
-        return snapshot.questions
-            .filter { categoryId == null || it.categoryId == categoryId }
-            .map { if (it.id in ids) it.copy(isBookmarked = true) else it }
+    override suspend fun getCatalog(): Catalog {
+        ensureSeeded()
+        return catalog.get()
     }
 
-    override suspend fun getQuestion(id: String): Question? {
-        val question = catalog().byId[id] ?: return null
-        return question.copy(isBookmarked = id in bookmarks())
+    override suspend fun getPaperSummaries(subjectId: String): List<PaperSummary> {
+        ensureSeeded()
+        cacheMutex.withLock { summaries[subjectId] }?.let { return it }
+        val loaded = withContext(ioDispatcher) {
+            queries.selectPaperSummaries(subjectId).executeAsList()
+                .groupBy { PaperKey(subjectId, it.board_id, it.year.toInt()) }
+                .map { (key, rows) ->
+                    PaperSummary(
+                        key = key,
+                        mcqCount = rows.filter { it.type == QuestionType.MCQ.name }.sumOf { it.total }.toInt(),
+                        cqCount = rows.filter { it.type == QuestionType.CQ.name }.sumOf { it.total }.toInt(),
+                    )
+                }
+        }
+        cacheMutex.withLock { summaries[subjectId] = loaded }
+        return loaded
     }
+
+    override suspend fun getPaperQuestions(key: PaperKey): List<Question> {
+        ensureSeeded()
+        val ids = cacheMutex.withLock { paperIds[key] } ?: withContext(ioDispatcher) {
+            queries.selectPaperQuestionIds(key.subjectId, key.boardId, key.year.toLong()).executeAsList().map { it.question_id }
+        }.also { ids -> cacheMutex.withLock { paperIds[key] = ids } }
+        return questions(ids)
+    }
+
+    override suspend fun getChapterQuestions(chapterId: String): List<Question> {
+        ensureSeeded()
+        val ids = cacheMutex.withLock { chapterIds[chapterId] } ?: withContext(ioDispatcher) {
+            queries.selectChapterQuestions(chapterId).executeAsList().map { it.id }
+        }.also { ids -> cacheMutex.withLock { chapterIds[chapterId] = ids } }
+        return questions(ids)
+    }
+
+    override suspend fun getSubjectQuestions(subjectId: String): List<Question> {
+        ensureSeeded()
+        val ids = cacheMutex.withLock { subjectIds[subjectId] } ?: withContext(ioDispatcher) {
+            queries.selectSubjectQuestions(subjectId).executeAsList().map { it.id }
+        }.also { ids -> cacheMutex.withLock { subjectIds[subjectId] = ids } }
+        return questions(ids)
+    }
+
+    override suspend fun search(query: String, exam: ExamType, limit: Int): List<Question> {
+        ensureSeeded()
+        val ids = withContext(ioDispatcher) {
+            queries.searchQuestions(exam.name, query, limit.toLong()).executeAsList().map { it.id }
+        }
+        return questions(ids)
+    }
+
+    override suspend fun getQuestion(id: String): Question? = questions(listOf(id)).firstOrNull()
 
     override fun observeBookmarkedQuestions(): Flow<List<Question>> = flow {
-        val snapshot = catalog()
         bookmarks()
-        emitAll(
-            bookmarkIds.filterNotNull().map { ids ->
-                ids.mapNotNull { id -> snapshot.byId[id]?.copy(isBookmarked = true) }
-            },
-        )
+        emitAll(bookmarkIds.filterNotNull().map { ids -> questions(ids) })
     }
 
     override suspend fun setBookmarked(questionId: String, bookmarked: Boolean) {
@@ -124,9 +203,25 @@ class SqlDelightQuestionRepository(
         }
     }
 
-    private suspend fun catalog(): Catalog {
+    /** Resolves ids to questions in the given order, loading only what is not cached yet. */
+    private suspend fun questions(ids: List<String>): List<Question> {
+        if (ids.isEmpty()) return emptyList()
         ensureSeeded()
-        return catalog.get()
+        val missing = cacheMutex.withLock { ids.filterNot { it in questionsById } }.distinct()
+        if (missing.isNotEmpty()) {
+            val loaded = withContext(ioDispatcher) {
+                missing.chunked(SQL_CHUNK).flatMap { chunk ->
+                    val appearances = queries.selectAppearancesByQuestionIds(chunk).executeAsList()
+                        .groupBy({ it.question_id }) { Appearance(it.board_id, it.year.toInt(), it.number.toInt()) }
+                    queries.selectQuestionsByIds(chunk).executeAsList().map { it.toDomain(appearances[it.id].orEmpty()) }
+                }
+            }
+            cacheMutex.withLock { loaded.forEach { questionsById[it.id] = it } }
+        }
+        val marked = bookmarks().toSet()
+        return cacheMutex.withLock {
+            ids.mapNotNull { id -> questionsById[id]?.let { if (id in marked) it.copy(isBookmarked = true) else it } }
+        }
     }
 
     private suspend fun bookmarks(): List<String> {
@@ -139,20 +234,50 @@ class SqlDelightQuestionRepository(
     }
 
     private suspend fun loadCatalog(): Catalog = withContext(ioDispatcher) {
-        val questions = queries.selectQuestions().executeAsList().map { it.toDomain() }
-        val counts = questions.groupingBy { it.categoryId }.eachCount()
-        val categories = queries.selectCategories().executeAsList().map {
-            Category(
-                id = it.id,
-                title = it.title,
-                description = it.description,
-                questionCount = counts[it.id] ?: 0,
+        val counts = queries.selectChapterCounts().executeAsList().groupBy { it.chapter_id }
+        val chapters = queries.selectChapters().executeAsList().groupBy { it.subject_id }
+        val subjects = queries.selectSubjects().executeAsList().mapNotNull { s ->
+            val exam = ExamType.entries.firstOrNull { it.name == s.exam } ?: return@mapNotNull null
+            Subject(
+                id = s.id,
+                exam = exam,
+                name = s.name,
+                nameEn = s.name_en,
+                code = s.code,
+                group = StudyGroup.entries.firstOrNull { it.name == s.study_group } ?: StudyGroup.COMMON,
+                chapters = chapters[s.id].orEmpty().map { c ->
+                    val byType = counts[c.id].orEmpty()
+                    Chapter(
+                        id = c.id,
+                        subjectId = s.id,
+                        number = c.number.toInt(),
+                        name = c.name,
+                        mcqCount = byType.filter { it.type == QuestionType.MCQ.name }.sumOf { it.total }.toInt(),
+                        cqCount = byType.filter { it.type == QuestionType.CQ.name }.sumOf { it.total }.toInt(),
+                    )
+                },
             )
         }
-        Catalog(categories, questions)
+        val exams = queries.selectExams().executeAsList().mapNotNull { e ->
+            ExamType.entries.firstOrNull { it.name == e.id }?.let { Exam(it, e.name, e.full_name) }
+        }
+        val years = queries.selectExamYears().executeAsList()
+            .mapNotNull { row -> ExamType.entries.firstOrNull { it.name == row.exam }?.let { it to row.year.toInt() } }
+            .groupBy({ it.first }) { it.second }
+        Catalog(
+            exams = exams,
+            boards = queries.selectBoards().executeAsList().map { Board(it.id, it.name, it.name_en) },
+            subjects = subjects,
+            notes = queries.selectNotes().executeAsList().mapNotNull { n ->
+                ExamType.entries.firstOrNull { it.name == n.exam }?.let { YearNote(it, n.year.toInt(), n.text) }
+            },
+            yearsByExam = years,
+            isSample = queries.selectSeedMeta().executeAsOneOrNull()?.is_sample == 1L,
+        )
     }
 
-    private class Catalog(val categories: List<Category>, val questions: List<Question>) {
-        val byId: Map<String, Question> = questions.associateBy { it.id }
+    private companion object {
+        /** Stays well below SQLite's default limit of 999 bound parameters. */
+        const val SQL_CHUNK = 400
     }
 }

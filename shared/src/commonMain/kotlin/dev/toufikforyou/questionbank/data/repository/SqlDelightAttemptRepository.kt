@@ -22,7 +22,7 @@ class SqlDelightAttemptRepository(
         withContext(ioDispatcher) {
             queries.insertAttempt(
                 question_id = attempt.questionId,
-                category_id = attempt.categoryId,
+                subject_id = attempt.subjectId,
                 selected_option_id = attempt.selectedOptionId,
                 is_correct = if (attempt.isCorrect) 1L else 0L,
                 answered_at = attempt.answeredAtMillis,

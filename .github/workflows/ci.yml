@@ -79,7 +79,7 @@ jobs:
         with:
           xcode-version: latest-stable
       - name: Kotlin/Native tests
-        run: ./gradlew :shared:iosSimulatorArm64Test --stacktrace
+        run: .github/scripts/report-errors.sh "Kotlin/Native tests" ./gradlew :shared:iosSimulatorArm64Test --stacktrace
       - name: Generate Xcode project
         run: |
           brew install xcodegen
@@ -89,7 +89,7 @@ jobs:
           set -euo pipefail
           UDID=$(xcrun simctl list devices available --json \
             | jq -r '[.devices | to_entries[] | select(.key | contains("iOS")) | .value[] | select(.name | startswith("iPhone"))][0].udid')
-          xcodebuild test \
+          .github/scripts/report-errors.sh "XCTest" xcodebuild test \
             -project iosApp/iosApp.xcodeproj \
             -scheme iosApp \
             -destination "id=$UDID" \

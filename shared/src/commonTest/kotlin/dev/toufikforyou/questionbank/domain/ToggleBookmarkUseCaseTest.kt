@@ -4,7 +4,8 @@ import app.cash.turbine.test
 import dev.toufikforyou.questionbank.domain.model.DomainError
 import dev.toufikforyou.questionbank.domain.usecase.ToggleBookmarkUseCase
 import dev.toufikforyou.questionbank.fakes.FakeQuestionRepository
-import dev.toufikforyou.questionbank.fakes.question
+import dev.toufikforyou.questionbank.fakes.creative
+import dev.toufikforyou.questionbank.fakes.mcq
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -15,8 +16,8 @@ import kotlin.test.assertTrue
 class ToggleBookmarkUseCaseTest {
 
     @Test
-    fun togglingTwiceRestoresOriginalState() = runTest {
-        val repo = FakeQuestionRepository(listOf(question("q1")))
+    fun togglingTwiceRestoresOriginalStateForMcqAndCreative() = runTest {
+        val repo = FakeQuestionRepository(listOf(mcq("q1"), creative("cq1")))
         val toggle = ToggleBookmarkUseCase(repo)
 
         repo.observeBookmarkedQuestions().test {
@@ -25,15 +26,16 @@ class ToggleBookmarkUseCaseTest {
             assertTrue(toggle("q1").getOrThrow())
             assertEquals(listOf("q1"), awaitItem().map { it.id })
 
+            assertTrue(toggle("cq1").getOrThrow())
+            assertEquals(listOf("cq1", "q1"), awaitItem().map { it.id })
+
             assertFalse(toggle("q1").getOrThrow())
-            assertEquals(emptyList(), awaitItem())
+            assertEquals(listOf("cq1"), awaitItem().map { it.id })
         }
     }
 
     @Test
     fun unknownQuestionFails() = runTest {
-        val result = ToggleBookmarkUseCase(FakeQuestionRepository())("missing")
-
-        assertIs<DomainError.QuestionNotFound>(result.exceptionOrNull())
+        assertIs<DomainError.QuestionNotFound>(ToggleBookmarkUseCase(FakeQuestionRepository())("missing").exceptionOrNull())
     }
 }

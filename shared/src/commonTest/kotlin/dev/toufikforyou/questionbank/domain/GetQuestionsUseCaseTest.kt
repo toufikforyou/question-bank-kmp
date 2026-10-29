@@ -1,10 +1,15 @@
 package dev.toufikforyou.questionbank.domain
 
 import dev.toufikforyou.questionbank.domain.model.DomainError
+import dev.toufikforyou.questionbank.domain.model.PaperKey
 import dev.toufikforyou.questionbank.domain.model.QuizRequest
 import dev.toufikforyou.questionbank.domain.usecase.GetQuestionsUseCase
 import dev.toufikforyou.questionbank.fakes.FakeQuestionRepository
-import dev.toufikforyou.questionbank.fakes.question
+import dev.toufikforyou.questionbank.fakes.PHYSICS
+import dev.toufikforyou.questionbank.fakes.PHYSICS_CH2
+import dev.toufikforyou.questionbank.fakes.at
+import dev.toufikforyou.questionbank.fakes.creative
+import dev.toufikforyou.questionbank.fakes.mcq
 import kotlinx.coroutines.test.runTest
 import kotlin.random.Random
 import kotlin.test.Test
@@ -14,83 +19,91 @@ import kotlin.test.assertTrue
 
 class GetQuestionsUseCaseTest {
 
-    private val questions = (1..20).map { question("q$it", categoryId = if (it % 2 == 0) "even" else "odd") }
+    private val questions = (1..20).map { mcq("q$it", chapterId = if (it % 2 == 0) PHYSICS_CH2 else "ssc-physics-1") } +
+        creative("cq1")
 
     @Test
     fun emptyQuestionBankFailsWithDomainError() = runTest {
-        val useCase = GetQuestionsUseCase(FakeQuestionRepository(emptyList()))
+        val result = GetQuestionsUseCase(FakeQuestionRepository())(QuizRequest.forSubject(PHYSICS))
 
-        val error = useCase(QuizRequest()).exceptionOrNull()
-
-        assertIs<DomainError.EmptyQuestionBank>(error)
+        assertIs<DomainError.EmptyQuestionBank>(result.exceptionOrNull())
     }
 
     @Test
-    fun unknownCategoryIsTreatedAsEmpty() = runTest {
+    fun requestWithoutAnySourceIsRejected() = runTest {
+        val result = GetQuestionsUseCase(FakeQuestionRepository(questions))(QuizRequest())
+
+        assertIs<DomainError.EmptyQuestionBank>(result.exceptionOrNull())
+    }
+
+    @Test
+    fun limitOutsideBoundsIsRejected() = runTest {
         val useCase = GetQuestionsUseCase(FakeQuestionRepository(questions))
 
-        val error = useCase(QuizRequest(categoryId = "missing")).exceptionOrNull()
-
-        assertIs<DomainError.EmptyQuestionBank>(error)
-        assertEquals("missing", error.categoryId)
+        assertIs<DomainError.InvalidQuizSize>(useCase(QuizRequest(subjectId = PHYSICS, limit = 0)).exceptionOrNull())
+        assertIs<DomainError.InvalidQuizSize>(useCase(QuizRequest(subjectId = PHYSICS, limit = QuizRequest.MAX_LIMIT + 1)).exceptionOrNull())
     }
 
     @Test
-    fun limitBelowOneIsRejected() = runTest {
-        val result = GetQuestionsUseCase(FakeQuestionRepository(questions))(QuizRequest(limit = 0))
+    fun creativeQuestionsAreNeverPractisedAsMcq() = runTest {
+        val selected = GetQuestionsUseCase(FakeQuestionRepository(questions))(QuizRequest(subjectId = PHYSICS, limit = 50)).getOrThrow()
 
-        assertIs<DomainError.InvalidQuizSize>(result.exceptionOrNull())
+        assertEquals(20, selected.size)
+        assertTrue(selected.all { it.isMcq })
     }
 
     @Test
-    fun limitAboveMaximumIsRejected() = runTest {
-        val result = GetQuestionsUseCase(FakeQuestionRepository(questions))(QuizRequest(limit = QuizRequest.MAX_LIMIT + 1))
+    fun chapterRequestOnlyUsesThatChapter() = runTest {
+        val selected = GetQuestionsUseCase(FakeQuestionRepository(questions))(QuizRequest(chapterId = PHYSICS_CH2, limit = 50)).getOrThrow()
 
-        assertIs<DomainError.InvalidQuizSize>(result.exceptionOrNull())
-    }
-
-    @Test
-    fun limitIsAppliedAndNeverExceedsPoolSize() = runTest {
-        val useCase = GetQuestionsUseCase(FakeQuestionRepository(questions))
-
-        assertEquals(5, useCase(QuizRequest(limit = 5)).getOrThrow().size)
-        assertEquals(20, useCase(QuizRequest(limit = QuizRequest.MAX_LIMIT)).getOrThrow().size)
-    }
-
-    @Test
-    fun categoryFilterOnlyReturnsMatchingQuestions() = runTest {
-        val result = GetQuestionsUseCase(FakeQuestionRepository(questions))(QuizRequest(categoryId = "even", limit = 50))
-
-        val selected = result.getOrThrow()
         assertEquals(10, selected.size)
-        assertTrue(selected.all { it.categoryId == "even" })
+        assertTrue(selected.all { it.chapterId == PHYSICS_CH2 })
     }
 
     @Test
-    fun shuffleIsDeterministicForSeededRandom() = runTest {
+    fun paperRequestKeepsOriginalPaperOrderAndIsTimed() = runTest {
+        val repo = FakeQuestionRepository(
+            listOf(
+                mcq("third", appearances = listOf(at("dhaka", 2023, 3))),
+                mcq("first", appearances = listOf(at("dhaka", 2023, 1))),
+                creative("cq", appearances = listOf(at("dhaka", 2023, 2))),
+                mcq("other-board", appearances = listOf(at("rajshahi", 2023, 1))),
+            ),
+        )
+        val request = QuizRequest.forPaper(PaperKey(PHYSICS, "dhaka", 2023))
+
+        val selected = GetQuestionsUseCase(repo, Random(1))(request).getOrThrow()
+
+        assertEquals(listOf("first", "third"), selected.map { it.id })
+        assertTrue(request.timed)
+    }
+
+    @Test
+    fun shuffleIsDeterministicForSeededRandomAndNeverRepeats() = runTest {
         val repo = FakeQuestionRepository(questions)
 
-        val first = GetQuestionsUseCase(repo, Random(42))(QuizRequest()).getOrThrow().map { it.id }
-        val second = GetQuestionsUseCase(repo, Random(42))(QuizRequest()).getOrThrow().map { it.id }
+        val first = GetQuestionsUseCase(repo, Random(42))(QuizRequest.forSubject(PHYSICS)).getOrThrow().map { it.id }
+        val second = GetQuestionsUseCase(repo, Random(42))(QuizRequest.forSubject(PHYSICS)).getOrThrow().map { it.id }
 
         assertEquals(first, second)
-        assertEquals(first.size, first.toSet().size, "a quiz must never repeat a question")
+        assertEquals(QuizRequest.DEFAULT_LIMIT, first.size)
+        assertEquals(first.size, first.toSet().size)
     }
 
     @Test
-    fun bookmarkedOnlyUsesBookmarks() = runTest {
-        val repo = FakeQuestionRepository(listOf(question("a", bookmarked = true), question("b")))
+    fun bookmarksRequestUsesBookmarkedMcqsOnly() = runTest {
+        val repo = FakeQuestionRepository(listOf(mcq("a", bookmarked = true), mcq("b")))
 
-        val result = GetQuestionsUseCase(repo)(QuizRequest(bookmarkedOnly = true)).getOrThrow()
+        val selected = GetQuestionsUseCase(repo)(QuizRequest.forBookmarks()).getOrThrow()
 
-        assertEquals(listOf("a"), result.map { it.id })
+        assertEquals(listOf("a"), selected.map { it.id })
     }
 
     @Test
     fun repositoryFailureIsWrappedInResult() = runTest {
         val repo = FakeQuestionRepository(questions).apply { failWith = IllegalStateException("disk full") }
 
-        val result = GetQuestionsUseCase(repo)(QuizRequest())
+        val result = GetQuestionsUseCase(repo)(QuizRequest.forPaper(PaperKey(PHYSICS, "dhaka", 2023)))
 
         assertEquals("disk full", result.exceptionOrNull()?.message)
     }

@@ -14,37 +14,36 @@ final class ScreenshotTests: XCTestCase {
         app.launchArguments = ["-ui-testing"]
         app.launch()
 
-        XCTAssertTrue(app.buttons["home.quickQuiz"].waitForExistence(timeout: 15))
+        XCTAssertTrue(app.buttons["finder.open"].waitForExistence(timeout: 90))
         capture("ios-1-home")
 
-        app.buttons["home.category.kotlin"].tap()
-        XCTAssertTrue(app.staticTexts["quiz.counter"].waitForExistence(timeout: 5))
-        capture("ios-2-question")
+        app.buttons["finder.open"].tap()
+        XCTAssertTrue(app.buttons["list.practise"].waitForExistence(timeout: 10))
+        capture("ios-2-board-paper")
 
-        app.buttons["quiz.bookmark"].tap()
-        app.buttons["quiz.option.1"].tap()
-        XCTAssertTrue(app.buttons["quiz.next"].waitForExistence(timeout: 5))
+        app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'question.option.'")).firstMatch.tap()
+        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "identifier BEGINSWITH 'question.feedback.'")).firstMatch.waitForExistence(timeout: 5))
         capture("ios-3-answer")
 
-        app.buttons["quiz.next"].tap()
-        for _ in 0..<5 {
-            app.buttons["quiz.option.1"].tap()
-            XCTAssertTrue(app.buttons["quiz.next"].waitForExistence(timeout: 5))
-            app.buttons["quiz.next"].tap()
-        }
-        XCTAssertTrue(app.staticTexts["quiz.result.summary"].waitForExistence(timeout: 5))
-        capture("ios-4-results")
-
-        app.buttons["quiz.done"].tap()
-        XCTAssertTrue(app.buttons["home.stats"].waitForExistence(timeout: 5))
-        app.buttons["home.stats"].tap()
-        XCTAssertTrue(app.navigationBars["Statistics"].waitForExistence(timeout: 5))
-        capture("ios-5-statistics")
-
+        app.buttons["list.practise"].tap()
+        XCTAssertTrue(app.staticTexts["quiz.counter"].waitForExistence(timeout: 5))
+        capture("ios-4-exam-mode")
         app.navigationBars.buttons.element(boundBy: 0).tap()
-        app.buttons["home.bookmarks"].tap()
-        XCTAssertTrue(app.buttons["bookmarks.practice"].waitForExistence(timeout: 5))
-        capture("ios-6-bookmarks")
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+
+        let subject = app.buttons["home.subject.ssc-physics"]
+        for _ in 0..<8 where !subject.isHittable { app.swipeUp() }
+        subject.tap()
+        XCTAssertTrue(app.segmentedControls.firstMatch.waitForExistence(timeout: 5))
+        capture("ios-5-subject-papers")
+
+        app.segmentedControls.buttons["অধ্যায়ভিত্তিক"].tap()
+        app.buttons["subject.chapter.ssc-physics-2"].tap()
+        XCTAssertTrue(app.buttons["list.practise"].waitForExistence(timeout: 10))
+        app.segmentedControls.buttons["সৃজনশীল"].tap()
+        let reveal = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'question.reveal.'")).firstMatch
+        if reveal.waitForExistence(timeout: 5) { reveal.tap() }
+        capture("ios-6-creative")
     }
 
     private func capture(_ name: String) {
