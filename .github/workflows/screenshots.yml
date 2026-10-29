@@ -62,7 +62,7 @@ jobs:
           set -euo pipefail
           UDID=$(xcrun simctl list devices available --json \
             | jq -r '[.devices | to_entries[] | select(.key | contains("iOS")) | .value[] | select(.name | startswith("iPhone")) | select(.name | contains("Pro"))][0].udid')
-          TEST_RUNNER_CAPTURE_SCREENSHOTS=1 xcodebuild test \
+          TEST_RUNNER_CAPTURE_SCREENSHOTS=1 .github/scripts/report-errors.sh "iOS screenshots" xcodebuild test \
             -project iosApp/iosApp.xcodeproj \
             -scheme iosApp \
             -destination "id=$UDID" \
