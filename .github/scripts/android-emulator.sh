@@ -32,8 +32,12 @@ step() {
 }
 
 wait_for_boot() {
-  adb wait-for-device
   for _ in $(seq 1 120); do
+    if ! kill -0 "$EMULATOR_PID" 2>/dev/null; then
+      echo "Emulator process exited early:"
+      tail -n 60 "$LOG_DIR/emulator-process.log"
+      return 1
+    fi
     if [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = "1" ]; then
       adb shell input keyevent 82 || true
       return 0
@@ -51,12 +55,15 @@ step "Create AVD" bash -c "echo no | avdmanager create avd --force -n ci -k '$IM
 nohup emulator -avd ci -no-window -no-audio -no-boot-anim -no-snapshot \
   -gpu swiftshader_indirect -camera-back none -camera-front none \
   > "$LOG_DIR/emulator-process.log" 2>&1 &
+EMULATOR_PID=$!
 
 step "Boot emulator" wait_for_boot
+echo "Emulator booted"
+adb devices
 if [ "${DISABLE_ANIMATIONS:-true}" = "true" ]; then
   adb shell settings put global window_animation_scale 0
   adb shell settings put global transition_animation_scale 0
   adb shell settings put global animator_duration_scale 0
 fi
 
-step "Run on emulator" "$@"
+step "Run on emulator" timeout --signal=INT 1500 "$@"

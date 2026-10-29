@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "categories": [
     {
       "id": "kotlin",
@@ -46,13 +46,13 @@
         }
       ],
       "correctOptionId": "b",
-      "explanation": "`val` declares a read-only reference; `var` declares a mutable one.",
+      "explanation": "\"val\" declares a read-only reference; \"var\" declares a mutable one.",
       "difficulty": "EASY"
     },
     {
       "id": "kotlin-002",
       "categoryId": "kotlin",
-      "prompt": "What is the `?:` operator called?",
+      "prompt": "What is the \"?:\" operator called?",
       "options": [
         {
           "id": "a",
@@ -98,7 +98,7 @@
         }
       ],
       "correctOptionId": "b",
-      "explanation": "`async` returns a `Deferred<T>` whose value you obtain with `await()`.",
+      "explanation": "\"async\" returns a \"Deferred<T>\" whose value you obtain with \"await()\".",
       "difficulty": "MEDIUM"
     },
     {
@@ -124,7 +124,7 @@
         }
       ],
       "correctOptionId": "c",
-      "explanation": "Declarations without a modifier are `public` by default.",
+      "explanation": "Declarations without a modifier are \"public\" by default.",
       "difficulty": "EASY"
     },
     {
@@ -150,13 +150,13 @@
         }
       ],
       "correctOptionId": "b",
-      "explanation": "`find` is an alias of `firstOrNull` and returns null instead of throwing.",
+      "explanation": "\"find\" is an alias of \"firstOrNull\" and returns null instead of throwing.",
       "difficulty": "MEDIUM"
     },
     {
       "id": "kotlin-006",
       "categoryId": "kotlin",
-      "prompt": "What does a `data class` generate automatically?",
+      "prompt": "What does a \"data class\" generate automatically?",
       "options": [
         {
           "id": "a",
