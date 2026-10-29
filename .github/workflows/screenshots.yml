@@ -86,3 +86,30 @@ jobs:
           name: screenshots-ios
           path: screenshots/*.png
           if-no-files-found: error
+
+  publish:
+    name: Publish to screenshots branch
+    needs: [android, ios]
+    if: always() && (needs.android.result == 'success' || needs.ios.result == 'success')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: screenshots-*
+          path: shots
+          merge-multiple: true
+      - name: Push images to the screenshots branch
+        run: |
+          set -euo pipefail
+          git config user.name "${{ github.repository_owner }}"
+          git config user.email "${{ github.repository_owner }}@users.noreply.github.com"
+          git checkout --orphan screenshots
+          git rm -rfq .
+          mv shots/*.png .
+          rm -rf shots
+          git add *.png
+          git commit -qm "Update screenshots"
+          git push -f origin screenshots
