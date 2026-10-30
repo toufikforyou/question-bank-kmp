@@ -36,7 +36,9 @@ android {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            // Pre-release builds without the real keystore are signed with the debug key (installable, not for Play).
             signingConfig = signingConfigs.findByName("release")
+                ?: if (project.findProperty("debugSigned") == "true") signingConfigs.getByName("debug") else null
         }
     }
 
