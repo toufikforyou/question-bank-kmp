@@ -4,12 +4,17 @@ on:
   push:
     tags:
       - "v*.*.*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version tag to create, e.g. v1.0.0 or v1.0.0-beta.1 (a '-' suffix makes it a pre-release)"
+        required: true
 
 permissions:
   contents: read
 
 concurrency:
-  group: release-${{ github.ref }}
+  group: release-${{ inputs.version || github.ref }}
   cancel-in-progress: false
 
 env:
@@ -17,6 +22,8 @@ env:
   # Author credited in the GitHub Release. Override with the repository variable APP_AUTHOR_NAME.
   APP_AUTHOR_NAME: ${{ vars.APP_AUTHOR_NAME || 'MH TOUFIK' }}
   JAVA_VERSION: "17"
+  # Tag pushes use the pushed tag; manual runs create the tag given as input on the current commit.
+  RELEASE_TAG: ${{ inputs.version || github.ref_name }}
 
 jobs:
   build:
@@ -40,7 +47,7 @@ jobs:
         id: version
         shell: bash
         run: |
-          TAG="${GITHUB_REF_NAME}"
+          TAG="${RELEASE_TAG}"
           VERSION="${TAG#v}"
           if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
             echo "::error::Tag '$TAG' is not a semantic version (expected vMAJOR.MINOR.PATCH)."
@@ -69,7 +76,7 @@ jobs:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
         run: |
           if [ -z "$ANDROID_KEYSTORE_BASE64" ]; then
-            if [[ "$GITHUB_REF_NAME" == *-* ]]; then
+            if [[ "$RELEASE_TAG" == *-* ]]; then
               echo "::warning::No release keystore configured; this pre-release is signed with a test key (installable, not for Google Play)."
               echo "ANDROID_SIGNING_ARGS=-PdebugSigned=true" >> "$GITHUB_ENV"
               exit 0
@@ -302,11 +309,11 @@ jobs:
       - name: Generate checksums and release notes
         run: |
           set -euo pipefail
-          VERSION="${GITHUB_REF_NAME#v}"
+          VERSION="${RELEASE_TAG#v}"
           (cd dist && sha256sum * > SHA256SUMS.txt)
 
-          PREVIOUS_TAG=$(git describe --tags --abbrev=0 "${GITHUB_REF_NAME}^" 2>/dev/null || true)
-          RANGE="${PREVIOUS_TAG:+$PREVIOUS_TAG..}${GITHUB_REF_NAME}"
+          PREVIOUS_TAG=$(git describe --tags --abbrev=0 "${GITHUB_SHA}^" 2>/dev/null || true)
+          RANGE="${PREVIOUS_TAG:+$PREVIOUS_TAG..}${GITHUB_SHA}"
 
           {
             echo "# ${APP_NAME} ${VERSION}"
@@ -315,7 +322,7 @@ jobs:
             echo
             echo "Offline-first question bank for Android and iOS. No account or login required."
             echo
-            if [[ "${GITHUB_REF_NAME}" == *-* ]]; then
+            if [[ "${RELEASE_TAG}" == *-* ]]; then
               echo "> **Pre-release:** for testing only. It contains sample questions, not official board papers."
               if ! ls dist/*.ipa >/dev/null 2>&1; then echo "> The iPhone build will follow once Apple signing is set up."; fi
               echo
@@ -346,9 +353,11 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          name: ${{ env.APP_NAME }} ${{ github.ref_name }}
+          tag_name: ${{ env.RELEASE_TAG }}
+          target_commitish: ${{ github.sha }}
+          name: ${{ env.APP_NAME }} ${{ env.RELEASE_TAG }}
           body_path: RELEASE_NOTES.md
           files: dist/*
           generate_release_notes: false
-          prerelease: ${{ contains(github.ref_name, '-') }}
+          prerelease: ${{ contains(env.RELEASE_TAG, '-') }}
           fail_on_unmatched_files: true
