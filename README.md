@@ -10,7 +10,14 @@
 Pick an exam, a board and a year, and the full question paper opens. Or study chapter by chapter
 and see which questions come back year after year.
 
-[Download the latest release](../../releases/latest)
+[![Release](https://img.shields.io/github/v/release/toufikforyou/question-bank-kmp?include_prereleases&label=release&color=2563EB)](../../releases/latest)
+[![CI](https://github.com/toufikforyou/question-bank-kmp/actions/workflows/ci.yml/badge.svg)](../../actions/workflows/ci.yml)
+[![Kotlin Multiplatform](https://img.shields.io/badge/Kotlin-Multiplatform-7F52FF?logo=kotlin&logoColor=white)](https://kotlinlang.org/docs/multiplatform.html)
+[![Android 8.0+](https://img.shields.io/badge/Android-8.0%2B-3DDC84?logo=android&logoColor=white)](#build-from-source)
+[![iOS 16+](https://img.shields.io/badge/iOS-16%2B-000000?logo=apple&logoColor=white)](#build-from-source)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
+[**Download the latest release**](../../releases/latest) · [Report a wrong answer](../../issues/new) · [How it's built](#how-its-built)
 
 </div>
 
@@ -102,6 +109,51 @@ Get the newest version from the [Releases](../../releases) page:
 
 - **Android:** download the `.apk` file and open it on your phone.
 - **iPhone:** available through the App Store / TestFlight when published.
+
+## How it's built
+
+One Kotlin Multiplatform core holds everything the two apps have in common: the question data, search,
+exam timing, progress and the screen state. Each platform then draws its own native UI on top, so the
+Android app feels like Android and the iPhone app feels like iOS.
+
+```text
+┌──────────────────────┐        ┌──────────────────────┐
+│   androidApp         │        │   iosApp             │
+│   Jetpack Compose    │        │   SwiftUI            │
+└──────────┬───────────┘        └──────────┬───────────┘
+           │        shared (Kotlin)        │
+           └──────────────┬────────────────┘
+        presentation  ·  MVI view models and UI state
+        domain        ·  models, repository contracts, use cases
+        data          ·  SQLDelight database, seed data, cache
+```
+
+| Layer | What's in it |
+|---|---|
+| **Shared** | Kotlin 2.1, Coroutines, kotlinx.serialization, kotlinx-datetime, SQLDelight 2 |
+| **Android** | Jetpack Compose, Material 3, Navigation Compose · min SDK 26, target SDK 35 |
+| **iOS** | SwiftUI · iOS 16+ · Xcode project generated with XcodeGen |
+| **CI** | GitHub Actions runs the shared unit tests and builds both the Android and iOS apps on every push, and captures the screenshots above on a real emulator and simulator |
+
+## Build from source
+
+**You'll need:** JDK 17, Android Studio (latest stable), and for iOS a Mac with the latest stable Xcode and
+[XcodeGen](https://github.com/yonaskolb/XcodeGen).
+
+```bash
+git clone https://github.com/toufikforyou/question-bank-kmp.git
+cd question-bank-kmp
+
+# Android: build a debug APK
+./gradlew :androidApp:assembleDebug
+
+# Shared logic: run the unit tests
+./gradlew :shared:testDebugUnitTest
+
+# iOS: generate the Xcode project, then open it and press Run
+xcodegen generate --spec iosApp/project.yml
+open iosApp/iosApp.xcodeproj
+```
 
 ## Feedback
 
